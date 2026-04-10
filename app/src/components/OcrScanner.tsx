@@ -17,7 +17,7 @@ export function OcrScanner({ cards, onCardDetected }: OcrScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const { t } = useI18n();
+  const { t, tr } = useI18n();
 
   const startCamera = useCallback(async () => {
     setError(null);
@@ -208,7 +208,7 @@ export function OcrScanner({ cards, onCardDetected }: OcrScannerProps) {
                     <div>
                       <div className="text-sm font-medium">{card.name}</div>
                       <div className="text-xs text-gray-500">
-                        {card.set.name} · {formatSetNumber(card.set, card.number)} · {card.rarity}
+                        {card.set.name} · {formatSetNumber(card.set, card.number)} · {tr('rarity', card.rarity ?? '')}
                       </div>
                     </div>
                     <span className="ml-auto text-xs text-blue-600">{t('scan.select')}</span>

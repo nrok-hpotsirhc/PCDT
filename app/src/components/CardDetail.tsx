@@ -1,5 +1,5 @@
 import type { PortfolioRow } from '@/lib/types';
-import { CONDITION_LABELS, formatSetNumber } from '@/lib/types';
+import { formatSetNumber } from '@/lib/types';
 import { formatCurrency, formatPct } from '@/lib/price-utils';
 import { useI18n } from '@/lib/i18n';
 import { PriceIndicator } from './PriceIndicator';
@@ -14,14 +14,14 @@ interface CardDetailProps {
 
 export function CardDetail({ row, onClose, onEdit, onDelete }: CardDetailProps) {
   const { card, userCard, currentPrice, currency, sourceUrl } = row;
-  const { t } = useI18n();
+  const { t, tr } = useI18n();
 
   const priceHistory = [
-    { label: '1 Year Ago', price: row.priceYearAgo, change: row.changeYearPct },
-    { label: '30 Days Ago', price: row.priceMonthAgo, change: row.changeMonthPct },
-    { label: '7 Days Ago', price: row.priceWeekAgo, change: row.changeWeekPct },
-    { label: 'Yesterday', price: row.priceDayAgo, change: row.changeDayPct },
-    { label: 'Current', price: currentPrice, change: null },
+    { label: t('detail.yearAgo'), price: row.priceYearAgo, change: row.changeYearPct },
+    { label: t('detail.monthAgo'), price: row.priceMonthAgo, change: row.changeMonthPct },
+    { label: t('detail.weekAgo'), price: row.priceWeekAgo, change: row.changeWeekPct },
+    { label: t('detail.yesterday'), price: row.priceDayAgo, change: row.changeDayPct },
+    { label: t('detail.current'), price: currentPrice, change: null },
   ];
 
   const sparklineData = priceHistory
@@ -41,17 +41,17 @@ export function CardDetail({ row, onClose, onEdit, onDelete }: CardDetailProps) 
           <div className="flex-1 min-w-0">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">{card.name}</h2>
             <p className="text-sm text-gray-500 mt-1">
-              {card.set.name} · {formatSetNumber(card.set, card.number)} · {card.rarity}
+              {card.set.name} · {formatSetNumber(card.set, card.number)} · {tr('rarity', card.rarity ?? '')}
             </p>
             <div className="flex flex-wrap gap-2 mt-3">
               <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs">
-                {CONDITION_LABELS[userCard.condition]}
+                {tr('condition', userCard.condition)}
               </span>
               <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs">
-                {userCard.variant}
+                {tr('variant', userCard.variant)}
               </span>
               <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs">
-                Qty: {userCard.quantity}
+                {t('detail.qty')}: {userCard.quantity}
               </span>
               {userCard.grade && (
                 <span className="px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900 rounded text-xs font-medium">
@@ -117,14 +117,14 @@ export function CardDetail({ row, onClose, onEdit, onDelete }: CardDetailProps) 
         {/* Purchase Info */}
         {(userCard.purchasePrice != null || userCard.notes) && (
           <div className="px-6 pb-4">
-            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Purchase Info</h3>
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{t('detail.purchaseInfo')}</h3>
             {userCard.purchasePrice != null && (
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                Bought for {formatCurrency(userCard.purchasePrice, userCard.purchaseCurrency ?? 'EUR')}
-                {userCard.purchaseDate && ` on ${userCard.purchaseDate}`}
+                {t('detail.boughtFor')} {formatCurrency(userCard.purchasePrice, userCard.purchaseCurrency ?? 'EUR')}
+                {userCard.purchaseDate && ` ${t('detail.on')} ${userCard.purchaseDate}`}
                 {currentPrice != null && (
                   <span className="ml-2">
-                    ({formatPct(((currentPrice - userCard.purchasePrice) / userCard.purchasePrice) * 100)} ROI)
+                    ({formatPct(((currentPrice - userCard.purchasePrice) / userCard.purchasePrice) * 100)} {t('detail.roi')})
                   </span>
                 )}
               </p>

@@ -10,7 +10,7 @@ import {
   type SortingState,
 } from '@tanstack/react-table';
 import type { PortfolioRow } from '@/lib/types';
-import { CONDITION_LABELS, formatSetNumber } from '@/lib/types';
+import { formatSetNumber } from '@/lib/types';
 import { formatCurrency } from '@/lib/price-utils';
 import { useI18n } from '@/lib/i18n';
 import { PriceIndicator } from './PriceIndicator';
@@ -28,7 +28,7 @@ export function CardTable({ rows, onRowClick }: CardTableProps) {
     { id: 'currentPrice', desc: true },
   ]);
   const [globalFilter, setGlobalFilter] = useState('');
-  const { t } = useI18n();
+  const { t, tr } = useI18n();
 
   const columns = useMemo(
     () => [
@@ -67,8 +67,8 @@ export function CardTable({ rows, onRowClick }: CardTableProps) {
       columnHelper.accessor((r) => r.card.rarity ?? '', {
         id: 'rarity',
         header: t('table.rarity'),
-        cell: ({ getValue }) => (
-          <span className="text-xs text-gray-600 dark:text-gray-400">{getValue()}</span>
+        cell: ({ row }) => (
+          <span className="text-xs text-gray-600 dark:text-gray-400">{tr('rarity', row.original.card.rarity ?? '')}</span>
         ),
       }),
       columnHelper.accessor((r) => r.userCard.condition, {
@@ -85,7 +85,7 @@ export function CardTable({ rows, onRowClick }: CardTableProps) {
           };
           return (
             <span className={`text-xs font-semibold px-2 py-1 rounded-full ${colors[c] ?? ''}`}>
-              {CONDITION_LABELS[c]}
+              {tr('condition', c)}
             </span>
           );
         },
@@ -115,7 +115,7 @@ export function CardTable({ rows, onRowClick }: CardTableProps) {
             <span className="text-xs text-gray-500">
               {formatCurrency(row.original.priceDayAgo, row.original.currency)}
             </span>
-            <PriceIndicator pctChange={row.original.changeDayPct} label="vs yesterday" />
+            <PriceIndicator pctChange={row.original.changeDayPct} label={t('table.vsDay')} />
           </div>
         ),
       }),
@@ -128,7 +128,7 @@ export function CardTable({ rows, onRowClick }: CardTableProps) {
             <span className="text-xs text-gray-500">
               {formatCurrency(row.original.priceWeekAgo, row.original.currency)}
             </span>
-            <PriceIndicator pctChange={row.original.changeWeekPct} label="vs 7 days ago" />
+            <PriceIndicator pctChange={row.original.changeWeekPct} label={t('table.vsWeek')} />
           </div>
         ),
       }),
@@ -141,7 +141,7 @@ export function CardTable({ rows, onRowClick }: CardTableProps) {
             <span className="text-xs text-gray-500">
               {formatCurrency(row.original.priceMonthAgo, row.original.currency)}
             </span>
-            <PriceIndicator pctChange={row.original.changeMonthPct} label="vs 30 days ago" />
+            <PriceIndicator pctChange={row.original.changeMonthPct} label={t('table.vsMonth')} />
           </div>
         ),
       }),
@@ -154,12 +154,12 @@ export function CardTable({ rows, onRowClick }: CardTableProps) {
             <span className="text-xs text-gray-500">
               {formatCurrency(row.original.priceYearAgo, row.original.currency)}
             </span>
-            <PriceIndicator pctChange={row.original.changeYearPct} label="vs 1 year ago" />
+            <PriceIndicator pctChange={row.original.changeYearPct} label={t('table.vsYear')} />
           </div>
         ),
       }),
     ],
-    [t],
+    [t, tr],
   );
 
   const table = useReactTable({
@@ -175,8 +175,8 @@ export function CardTable({ rows, onRowClick }: CardTableProps) {
         r.card.name.toLowerCase().includes(search) ||
         r.card.set.name.toLowerCase().includes(search) ||
         r.userCard.owner.toLowerCase().includes(search) ||
-        CONDITION_LABELS[r.userCard.condition].toLowerCase().includes(search) ||
-        (r.card.rarity?.toLowerCase().includes(search) ?? false)
+        tr('condition', r.userCard.condition).toLowerCase().includes(search) ||
+        tr('rarity', r.card.rarity ?? '').toLowerCase().includes(search)
       );
     },
     getCoreRowModel: getCoreRowModel(),

@@ -69,6 +69,73 @@ const translations = {
     'form.allResults': 'Alle Ergebnisse',
     'form.close': 'Schließen',
     'form.loadingAll': 'Lade alle Ergebnisse...',
+    'form.gradePlaceholder': 'z.B. 9.5',
+
+    // Conditions
+    'condition.NM': 'Nahezu Neuwertig',
+    'condition.LP': 'Leicht Bespielt',
+    'condition.MP': 'Mäßig Bespielt',
+    'condition.HP': 'Stark Bespielt',
+    'condition.DMG': 'Beschädigt',
+
+    // Variants
+    'variant.normal': 'Normal',
+    'variant.holofoil': 'Holo',
+    'variant.reverseHolofoil': 'Reverse Holo',
+    'variant.1stEditionHolofoil': '1. Edition Holo',
+    'variant.1stEditionNormal': '1. Edition Normal',
+
+    // Rarities
+    'rarity.Common': 'Häufig',
+    'rarity.Uncommon': 'Ungewöhnlich',
+    'rarity.Rare': 'Selten',
+    'rarity.Rare Holo': 'Selten Holo',
+    'rarity.Rare Holo EX': 'Selten Holo EX',
+    'rarity.Rare Holo GX': 'Selten Holo GX',
+    'rarity.Rare Holo V': 'Selten Holo V',
+    'rarity.Rare VMAX': 'Selten VMAX',
+    'rarity.Rare VSTAR': 'Selten VSTAR',
+    'rarity.Rare Ultra': 'Ultra Selten',
+    'rarity.Rare Secret': 'Geheim Selten',
+    'rarity.Rare Rainbow': 'Regenbogen Selten',
+    'rarity.Rare Shiny': 'Shiny Selten',
+    'rarity.Rare Holo Star': 'Selten Holo Star',
+    'rarity.Rare Prime': 'Selten Prime',
+    'rarity.Rare ACE': 'Selten ACE',
+    'rarity.Rare BREAK': 'Selten BREAK',
+    'rarity.Rare Prism Star': 'Selten Prisma-Stern',
+    'rarity.Amazing Rare': 'Erstaunlich Selten',
+    'rarity.LEGEND': 'LEGENDE',
+    'rarity.Promo': 'Promo',
+    'rarity.Double Rare': 'Doppelt Selten',
+    'rarity.Ultra Rare': 'Ultra Selten',
+    'rarity.Illustration Rare': 'Illustration Selten',
+    'rarity.Special Illustration Rare': 'Spezial-Illustration Selten',
+    'rarity.Hyper Rare': 'Hyper Selten',
+    'rarity.Shiny Rare': 'Schillernd Selten',
+    'rarity.Shiny Ultra Rare': 'Schillernd Ultra Selten',
+    'rarity.ACE SPEC Rare': 'ACE SPEC Selten',
+    'rarity.Radiant Rare': 'Strahlend Selten',
+    'rarity.Classic Collection': 'Klassische Sammlung',
+    'rarity.Trainer Gallery Rare Holo': 'Trainer-Galerie Selten Holo',
+
+    // Detail panel
+    'detail.yearAgo': 'Vor 1 Jahr',
+    'detail.monthAgo': 'Vor 30 Tagen',
+    'detail.weekAgo': 'Vor 7 Tagen',
+    'detail.yesterday': 'Gestern',
+    'detail.current': 'Aktuell',
+    'detail.qty': 'Anz.',
+    'detail.purchaseInfo': 'Kaufinformationen',
+    'detail.boughtFor': 'Gekauft für',
+    'detail.on': 'am',
+    'detail.roi': 'ROI',
+
+    // Table tooltips
+    'table.vsDay': 'vs. gestern',
+    'table.vsWeek': 'vs. vor 7 Tagen',
+    'table.vsMonth': 'vs. vor 30 Tagen',
+    'table.vsYear': 'vs. vor 1 Jahr',
 
     // Import
     'import.title': 'Aus Excel/CSV importieren',
@@ -172,6 +239,39 @@ const translations = {
     'form.allResults': 'All Results',
     'form.close': 'Close',
     'form.loadingAll': 'Loading all results...',
+    'form.gradePlaceholder': 'e.g. 9.5',
+
+    // Conditions
+    'condition.NM': 'Near Mint',
+    'condition.LP': 'Lightly Played',
+    'condition.MP': 'Moderately Played',
+    'condition.HP': 'Heavily Played',
+    'condition.DMG': 'Damaged',
+
+    // Variants
+    'variant.normal': 'Normal',
+    'variant.holofoil': 'Holofoil',
+    'variant.reverseHolofoil': 'Reverse Holofoil',
+    'variant.1stEditionHolofoil': '1st Edition Holofoil',
+    'variant.1stEditionNormal': '1st Edition Normal',
+
+    // Detail panel
+    'detail.yearAgo': '1 Year Ago',
+    'detail.monthAgo': '30 Days Ago',
+    'detail.weekAgo': '7 Days Ago',
+    'detail.yesterday': 'Yesterday',
+    'detail.current': 'Current',
+    'detail.qty': 'Qty',
+    'detail.purchaseInfo': 'Purchase Info',
+    'detail.boughtFor': 'Bought for',
+    'detail.on': 'on',
+    'detail.roi': 'ROI',
+
+    // Table tooltips
+    'table.vsDay': 'vs yesterday',
+    'table.vsWeek': 'vs 7 days ago',
+    'table.vsMonth': 'vs 30 days ago',
+    'table.vsYear': 'vs 1 year ago',
 
     'import.title': 'Import from Excel/CSV',
     'import.drop': 'Drag & drop an Excel/CSV file here, or',
@@ -216,12 +316,15 @@ interface I18nContextValue {
   locale: Locale;
   setLocale: (l: Locale) => void;
   t: (key: TranslationKey) => string;
+  /** Translate a dynamic key with prefix. Falls back to raw value if key not found. */
+  tr: (prefix: string, value: string) => string;
 }
 
 const I18nContext = createContext<I18nContextValue>({
   locale: 'de',
   setLocale: () => {},
   t: (key) => key,
+  tr: (_prefix, value) => value,
 });
 
 export function I18nProvider({ children }: { children: ReactNode }) {
@@ -236,11 +339,16 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   }
 
   function t(key: TranslationKey): string {
-    return translations[locale][key] ?? key;
+    return (translations[locale] as Record<string, string>)[key] ?? key;
+  }
+
+  function tr(prefix: string, value: string): string {
+    const fullKey = `${prefix}.${value}`;
+    return (translations[locale] as Record<string, string>)[fullKey] ?? value;
   }
 
   return (
-    <I18nContext value={{ locale, setLocale: handleSetLocale, t }}>
+    <I18nContext value={{ locale, setLocale: handleSetLocale, t, tr }}>
       {children}
     </I18nContext>
   );

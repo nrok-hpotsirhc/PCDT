@@ -80,14 +80,6 @@ export type Condition = 'NM' | 'LP' | 'MP' | 'HP' | 'DMG';
 export type GradingService = 'PSA' | 'BGS' | 'CGC';
 export type CardVariant = 'holofoil' | 'reverseHolofoil' | 'normal' | '1stEditionHolofoil' | '1stEditionNormal';
 
-export const CONDITION_LABELS: Record<Condition, string> = {
-  NM: 'Near Mint',
-  LP: 'Lightly Played',
-  MP: 'Moderately Played',
-  HP: 'Heavily Played',
-  DMG: 'Damaged',
-};
-
 // ── Nutzer-Sammlung ──
 
 export interface UserCard {

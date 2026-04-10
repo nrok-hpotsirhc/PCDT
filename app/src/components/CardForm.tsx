@@ -37,7 +37,7 @@ export function CardForm({ cards, onSubmit, onCancel, editCard }: CardFormProps)
   const [notes, setNotes] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
-  const { t } = useI18n();
+  const { t, tr } = useI18n();
 
   const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -189,7 +189,7 @@ export function CardForm({ cards, onSubmit, onCancel, editCard }: CardFormProps)
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium">{card.name}</div>
                   <div className="text-xs text-gray-500">
-                    <span className="font-semibold text-gray-700 dark:text-gray-300">{formatSetNumber(card.set, card.number)}</span> · {card.set.name} · {card.rarity}
+                    <span className="font-semibold text-gray-700 dark:text-gray-300">{formatSetNumber(card.set, card.number)}</span> · {card.set.name} · {tr('rarity', card.rarity ?? '')}
                   </div>
                 </div>
                 {(() => {
@@ -224,7 +224,7 @@ export function CardForm({ cards, onSubmit, onCancel, editCard }: CardFormProps)
             <div className="flex-1 min-w-0">
               <div className="font-medium text-sm text-gray-900 dark:text-gray-100">{selectedCard.name}</div>
               <div className="text-xs text-gray-600 dark:text-gray-400">
-                <span className="font-semibold">{formatSetNumber(selectedCard.set, selectedCard.number)}</span> · {selectedCard.set.name} · {selectedCard.rarity}
+                <span className="font-semibold">{formatSetNumber(selectedCard.set, selectedCard.number)}</span> · {selectedCard.set.name} · {tr('rarity', selectedCard.rarity ?? '')}
               </div>
             </div>
             {(() => {
@@ -248,11 +248,11 @@ export function CardForm({ cards, onSubmit, onCancel, editCard }: CardFormProps)
             onChange={(e) => setCondition(e.target.value as Condition)}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-lg text-sm"
           >
-            <option value="NM">Near Mint</option>
-            <option value="LP">Lightly Played</option>
-            <option value="MP">Moderately Played</option>
-            <option value="HP">Heavily Played</option>
-            <option value="DMG">Damaged</option>
+            <option value="NM">{t('condition.NM')}</option>
+            <option value="LP">{t('condition.LP')}</option>
+            <option value="MP">{t('condition.MP')}</option>
+            <option value="HP">{t('condition.HP')}</option>
+            <option value="DMG">{t('condition.DMG')}</option>
           </select>
         </div>
         <div>
@@ -263,7 +263,7 @@ export function CardForm({ cards, onSubmit, onCancel, editCard }: CardFormProps)
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-lg text-sm"
           >
             {availableVariants.map((v) => (
-              <option key={v} value={v}>{v}</option>
+              <option key={v} value={v}>{tr('variant', v)}</option>
             ))}
           </select>
         </div>
@@ -353,7 +353,7 @@ export function CardForm({ cards, onSubmit, onCancel, editCard }: CardFormProps)
             max={10}
             value={gradingScore}
             onChange={(e) => setGradingScore(e.target.value)}
-            placeholder="e.g. 9.5"
+            placeholder={t('form.gradePlaceholder')}
             disabled={!gradingService}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-lg text-sm disabled:bg-gray-100 dark:disabled:bg-gray-900"
           />
@@ -418,7 +418,7 @@ export function CardForm({ cards, onSubmit, onCancel, editCard }: CardFormProps)
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{card.name}</div>
                       <div className="text-xs text-gray-500">
-                        <span className="font-semibold text-gray-700 dark:text-gray-300">{formatSetNumber(card.set, card.number)}</span> · {card.set.name} · {card.rarity}
+                        <span className="font-semibold text-gray-700 dark:text-gray-300">{formatSetNumber(card.set, card.number)}</span> · {card.set.name} · {tr('rarity', card.rarity ?? '')}
                       </div>
                     </div>
                     {(() => {
