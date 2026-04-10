@@ -9,26 +9,33 @@ interface DashboardProps {
 
 export function Dashboard({ rows }: DashboardProps) {
   const { t } = useI18n();
-  const currency = rows[0]?.currency ?? 'USD';
+  const currency = rows[0]?.currency ?? 'EUR';
   const total = totalPortfolioValue(rows);
 
-  // Total yesterday value
-  const totalYesterday = rows.reduce((sum, r) => {
-    if (r.priceDayAgo == null) return sum;
-    return sum + r.priceDayAgo * r.userCard.quantity;
+  // Total based on 30d avg for comparison
+  const totalAvg30 = rows.reduce((sum, r) => {
+    if (r.avg30 == null) return sum;
+    return sum + r.avg30 * r.userCard.quantity;
   }, 0);
 
-  const totalChange = totalYesterday > 0
-    ? ((total - totalYesterday) / totalYesterday) * 100
+  const totalChange = totalAvg30 > 0
+    ? ((total - totalAvg30) / totalAvg30) * 100
     : null;
 
-  // Top gainers/losers (24h)
-  const sorted24h = [...rows]
-    .filter((r) => r.changeDayPct != null)
-    .sort((a, b) => (b.changeDayPct ?? 0) - (a.changeDayPct ?? 0));
+  // Top gainers/losers (trend vs avg30)
+  const withChange = rows
+    .map((r) => ({
+      row: r,
+      changePct: r.currentPrice != null && r.avg30 != null && r.avg30 > 0
+        ? ((r.currentPrice - r.avg30) / r.avg30) * 100
+        : null,
+    }))
+    .filter((x) => x.changePct != null);
 
-  const topGainers = sorted24h.slice(0, 3);
-  const topLosers = sorted24h.slice(-3).reverse();
+  const sorted = [...withChange].sort((a, b) => (b.changePct ?? 0) - (a.changePct ?? 0));
+
+  const topGainers = sorted.slice(0, 3);
+  const topLosers = sorted.slice(-3).reverse();
 
   // Most valuable cards
   const mostValuable = [...rows]
@@ -40,12 +47,11 @@ export function Dashboard({ rows }: DashboardProps) {
     })
     .slice(0, 5);
 
-  // Sparkline data for portfolio total
+  // Sparkline data for portfolio total: avg30 → avg7 → avg1 → trend
   const totalSparkline = [
-    rows.reduce((s, r) => s + (r.priceYearAgo ?? 0) * r.userCard.quantity, 0),
-    rows.reduce((s, r) => s + (r.priceMonthAgo ?? 0) * r.userCard.quantity, 0),
-    rows.reduce((s, r) => s + (r.priceWeekAgo ?? 0) * r.userCard.quantity, 0),
-    rows.reduce((s, r) => s + (r.priceDayAgo ?? 0) * r.userCard.quantity, 0),
+    rows.reduce((s, r) => s + (r.avg30 ?? 0) * r.userCard.quantity, 0),
+    rows.reduce((s, r) => s + (r.avg7 ?? 0) * r.userCard.quantity, 0),
+    rows.reduce((s, r) => s + (r.avg1 ?? 0) * r.userCard.quantity, 0),
     total,
   ].filter((v) => v > 0);
 
@@ -77,8 +83,8 @@ export function Dashboard({ rows }: DashboardProps) {
 
       {/* Gainers & Losers */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <MoverList title={t('dash.topGainers')} rows={topGainers} currency={currency} />
-        <MoverList title={t('dash.topLosers')} rows={topLosers} currency={currency} />
+        <MoverList title={t('dash.topGainers')} items={topGainers} currency={currency} />
+        <MoverList title={t('dash.topLosers')} items={topLosers} currency={currency} />
       </div>
 
       {/* Most Valuable */}
@@ -133,7 +139,7 @@ function KpiCard({
           {sublabel && <p className="text-xs text-gray-400">{sublabel}</p>}
           {change != null && (
             <p className={`text-xs font-medium ${change >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {change >= 0 ? '▲' : '▼'} {formatPct(change)} (24h)
+              {change >= 0 ? '▲' : '▼'} {formatPct(change)} (vs Ø 30d)
             </p>
           )}
         </div>
@@ -147,22 +153,22 @@ function KpiCard({
 
 function MoverList({
   title,
-  rows,
+  items,
   currency,
 }: {
   title: string;
-  rows: PortfolioRow[];
+  items: { row: PortfolioRow; changePct: number | null }[];
   currency: string;
 }) {
   const { t } = useI18n();
   return (
     <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
       <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">{title}</h3>
-      {rows.length === 0 ? (
+      {items.length === 0 ? (
         <p className="text-xs text-gray-400">{t('dash.noData')}</p>
       ) : (
         <div className="space-y-2">
-          {rows.map((row) => (
+          {items.map(({ row, changePct }) => (
             <div key={row.userCard.id} className="flex items-center gap-3">
               <img src={row.card.images.small} alt="" className="w-7 h-10 object-contain" />
               <div className="flex-1 min-w-0">
@@ -171,10 +177,10 @@ function MoverList({
               </div>
               <span
                 className={`text-xs font-semibold ${
-                  (row.changeDayPct ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                  (changePct ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'
                 }`}
               >
-                {(row.changeDayPct ?? 0) >= 0 ? '▲' : '▼'} {formatPct(row.changeDayPct)}
+                {(changePct ?? 0) >= 0 ? '▲' : '▼'} {formatPct(changePct)}
               </span>
             </div>
           ))}

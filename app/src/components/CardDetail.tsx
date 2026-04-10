@@ -2,7 +2,6 @@ import type { PortfolioRow } from '@/lib/types';
 import { formatSetNumber } from '@/lib/types';
 import { formatCurrency, formatPct } from '@/lib/price-utils';
 import { useI18n } from '@/lib/i18n';
-import { PriceIndicator } from './PriceIndicator';
 import { PriceSparkline } from './PriceSparkline';
 
 interface CardDetailProps {
@@ -16,17 +15,16 @@ export function CardDetail({ row, onClose, onEdit, onDelete }: CardDetailProps) 
   const { card, userCard, currentPrice, currency, sourceUrl } = row;
   const { t, tr } = useI18n();
 
-  const priceHistory = [
-    { label: t('detail.yearAgo'), price: row.priceYearAgo, change: row.changeYearPct },
-    { label: t('detail.monthAgo'), price: row.priceMonthAgo, change: row.changeMonthPct },
-    { label: t('detail.weekAgo'), price: row.priceWeekAgo, change: row.changeWeekPct },
-    { label: t('detail.yesterday'), price: row.priceDayAgo, change: row.changeDayPct },
-    { label: t('detail.current'), price: currentPrice, change: null },
+  const priceRows = [
+    { label: t('detail.priceFrom'), price: row.lowPrice },
+    { label: t('detail.priceTrend'), price: currentPrice, highlight: true },
+    { label: t('detail.avg30'), price: row.avg30 },
+    { label: t('detail.avg7'), price: row.avg7 },
+    { label: t('detail.avg1'), price: row.avg1 },
   ];
 
-  const sparklineData = priceHistory
-    .filter((p) => p.price != null)
-    .map((p) => p.price!);
+  const sparklineData = [row.avg30, row.avg7, row.avg1, currentPrice]
+    .filter((p): p is number => p != null);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -93,22 +91,19 @@ export function CardDetail({ row, onClose, onEdit, onDelete }: CardDetailProps) 
           </div>
         )}
 
-        {/* Price History */}
+        {/* Cardmarket Prices */}
         <div className="p-6">
           <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">{t('detail.priceHistory')}</h3>
           <div className="space-y-2">
-            {priceHistory.map((p) => (
+            {priceRows.map((p) => (
               <div
                 key={p.label}
                 className="flex items-center justify-between py-1.5 border-b border-gray-100 dark:border-gray-800 last:border-0"
               >
-                <span className="text-sm text-gray-600 dark:text-gray-400">{p.label}</span>
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium">
-                    {formatCurrency(p.price, currency)}
-                  </span>
-                  {p.change != null && <PriceIndicator pctChange={p.change} />}
-                </div>
+                <span className={`text-sm ${p.highlight ? 'font-semibold text-gray-900 dark:text-white' : 'text-gray-600 dark:text-gray-400'}`}>{p.label}</span>
+                <span className={`text-sm ${p.highlight ? 'font-bold text-blue-600 dark:text-blue-400' : 'font-medium'}`}>
+                  {formatCurrency(p.price, currency)}
+                </span>
               </div>
             ))}
           </div>

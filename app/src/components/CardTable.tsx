@@ -13,7 +13,6 @@ import type { PortfolioRow } from '@/lib/types';
 import { formatSetNumber } from '@/lib/types';
 import { formatCurrency } from '@/lib/price-utils';
 import { useI18n } from '@/lib/i18n';
-import { PriceIndicator } from './PriceIndicator';
 import { CurrencyBadge } from './CurrencyBadge';
 
 interface CardTableProps {
@@ -96,7 +95,7 @@ export function CardTable({ rows, onRowClick }: CardTableProps) {
         size: 50,
       }),
       columnHelper.accessor('currentPrice', {
-        header: () => <span title="Current Market Price">{t('table.price')}</span>,
+        header: () => <span title="Price Trend">{t('table.trend')}</span>,
         sortingFn: 'basic',
         cell: ({ row }) => (
           <CurrencyBadge
@@ -106,56 +105,44 @@ export function CardTable({ rows, onRowClick }: CardTableProps) {
           />
         ),
       }),
-      columnHelper.accessor('changeDayPct', {
-        header: '24h',
+      columnHelper.accessor('lowPrice', {
+        header: t('table.from'),
         sortingFn: 'basic',
-        size: 90,
+        size: 80,
         cell: ({ row }) => (
-          <div className="flex flex-col items-end gap-0.5">
-            <span className="text-xs text-gray-500">
-              {formatCurrency(row.original.priceDayAgo, row.original.currency)}
-            </span>
-            <PriceIndicator pctChange={row.original.changeDayPct} label={t('table.vsDay')} />
-          </div>
+          <span className="text-sm text-gray-700 dark:text-gray-300">
+            {formatCurrency(row.original.lowPrice, row.original.currency)}
+          </span>
         ),
       }),
-      columnHelper.accessor('changeWeekPct', {
-        header: '7d',
+      columnHelper.accessor('avg1', {
+        header: t('table.avg1'),
         sortingFn: 'basic',
-        size: 90,
+        size: 80,
         cell: ({ row }) => (
-          <div className="flex flex-col items-end gap-0.5">
-            <span className="text-xs text-gray-500">
-              {formatCurrency(row.original.priceWeekAgo, row.original.currency)}
-            </span>
-            <PriceIndicator pctChange={row.original.changeWeekPct} label={t('table.vsWeek')} />
-          </div>
+          <span className="text-sm text-gray-700 dark:text-gray-300">
+            {formatCurrency(row.original.avg1, row.original.currency)}
+          </span>
         ),
       }),
-      columnHelper.accessor('changeMonthPct', {
-        header: '30d',
+      columnHelper.accessor('avg7', {
+        header: t('table.avg7'),
         sortingFn: 'basic',
-        size: 90,
+        size: 80,
         cell: ({ row }) => (
-          <div className="flex flex-col items-end gap-0.5">
-            <span className="text-xs text-gray-500">
-              {formatCurrency(row.original.priceMonthAgo, row.original.currency)}
-            </span>
-            <PriceIndicator pctChange={row.original.changeMonthPct} label={t('table.vsMonth')} />
-          </div>
+          <span className="text-sm text-gray-700 dark:text-gray-300">
+            {formatCurrency(row.original.avg7, row.original.currency)}
+          </span>
         ),
       }),
-      columnHelper.accessor('changeYearPct', {
-        header: '1y',
+      columnHelper.accessor('avg30', {
+        header: t('table.avg30'),
         sortingFn: 'basic',
-        size: 90,
+        size: 80,
         cell: ({ row }) => (
-          <div className="flex flex-col items-end gap-0.5">
-            <span className="text-xs text-gray-500">
-              {formatCurrency(row.original.priceYearAgo, row.original.currency)}
-            </span>
-            <PriceIndicator pctChange={row.original.changeYearPct} label={t('table.vsYear')} />
-          </div>
+          <span className="text-sm text-gray-700 dark:text-gray-300">
+            {formatCurrency(row.original.avg30, row.original.currency)}
+          </span>
         ),
       }),
     ],

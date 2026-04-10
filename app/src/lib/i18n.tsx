@@ -24,8 +24,8 @@ const translations = {
     'dash.unique': 'verschiedene',
     'dash.mostValuable': 'Wertvollste',
     'dash.avgValue': 'Ø Kartenwert',
-    'dash.topGainers': '🔥 Top Gewinner (24h)',
-    'dash.topLosers': '📉 Top Verlierer (24h)',
+    'dash.topGainers': '🔥 Top Gewinner (vs Ø 30d)',
+    'dash.topLosers': '📉 Top Verlierer (vs Ø 30d)',
     'dash.mostValuableCards': '💎 Wertvollste Karten',
     'dash.noData': 'Keine Daten verfügbar',
 
@@ -120,22 +120,23 @@ const translations = {
     'rarity.Trainer Gallery Rare Holo': 'Trainer-Galerie Selten Holo',
 
     // Detail panel
-    'detail.yearAgo': 'Vor 1 Jahr',
-    'detail.monthAgo': 'Vor 30 Tagen',
-    'detail.weekAgo': 'Vor 7 Tagen',
-    'detail.yesterday': 'Gestern',
-    'detail.current': 'Aktuell',
+    'detail.priceTrend': 'Preistrend',
+    'detail.priceFrom': 'Ab',
+    'detail.avg1': 'Ø 1 Tag',
+    'detail.avg7': 'Ø 7 Tage',
+    'detail.avg30': 'Ø 30 Tage',
     'detail.qty': 'Anz.',
     'detail.purchaseInfo': 'Kaufinformationen',
-    'detail.boughtFor': 'Gekauft für',
+    'detail.boughtFor': 'Gekauft f\u00fcr',
     'detail.on': 'am',
     'detail.roi': 'ROI',
 
-    // Table tooltips
-    'table.vsDay': 'vs. gestern',
-    'table.vsWeek': 'vs. vor 7 Tagen',
-    'table.vsMonth': 'vs. vor 30 Tagen',
-    'table.vsYear': 'vs. vor 1 Jahr',
+    // Table columns
+    'table.from': 'Ab',
+    'table.trend': 'Trend',
+    'table.avg1': '\u00d8 1d',
+    'table.avg7': '\u00d8 7d',
+    'table.avg30': '\u00d8 30d',
 
     // Import
     'import.title': 'Aus Excel/CSV importieren',
@@ -196,8 +197,8 @@ const translations = {
     'dash.unique': 'unique',
     'dash.mostValuable': 'Most Valuable',
     'dash.avgValue': 'Avg Card Value',
-    'dash.topGainers': '🔥 Top Gainers (24h)',
-    'dash.topLosers': '📉 Top Losers (24h)',
+    'dash.topGainers': '🔥 Top Gainers (vs Ø 30d)',
+    'dash.topLosers': '📉 Top Losers (vs Ø 30d)',
     'dash.mostValuableCards': '💎 Most Valuable Cards',
     'dash.noData': 'No data available',
 
@@ -256,22 +257,23 @@ const translations = {
     'variant.1stEditionNormal': '1st Edition Normal',
 
     // Detail panel
-    'detail.yearAgo': '1 Year Ago',
-    'detail.monthAgo': '30 Days Ago',
-    'detail.weekAgo': '7 Days Ago',
-    'detail.yesterday': 'Yesterday',
-    'detail.current': 'Current',
+    'detail.priceTrend': 'Price Trend',
+    'detail.priceFrom': 'From',
+    'detail.avg1': '\u00d8 1 Day',
+    'detail.avg7': '\u00d8 7 Days',
+    'detail.avg30': '\u00d8 30 Days',
     'detail.qty': 'Qty',
     'detail.purchaseInfo': 'Purchase Info',
     'detail.boughtFor': 'Bought for',
     'detail.on': 'on',
     'detail.roi': 'ROI',
 
-    // Table tooltips
-    'table.vsDay': 'vs yesterday',
-    'table.vsWeek': 'vs 7 days ago',
-    'table.vsMonth': 'vs 30 days ago',
-    'table.vsYear': 'vs 1 year ago',
+    // Table columns
+    'table.from': 'From',
+    'table.trend': 'Trend',
+    'table.avg1': '\u00d8 1d',
+    'table.avg7': '\u00d8 7d',
+    'table.avg30': '\u00d8 30d',
 
     'import.title': 'Import from Excel/CSV',
     'import.drop': 'Drag & drop an Excel/CSV file here, or',

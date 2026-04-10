@@ -131,17 +131,13 @@ export interface PriceSnapshot {
 export interface PortfolioRow {
   userCard: UserCard;
   card: Card;
-  currentPrice: number | null;
+  currentPrice: number | null;   // trendPrice (or reverseHoloTrend)
+  lowPrice: number | null;       // "From" price
+  avg1: number | null;           // 1-day average
+  avg7: number | null;           // 7-day average
+  avg30: number | null;          // 30-day average
   currency: string;
   sourceUrl: string | null;
-  priceDayAgo: number | null;
-  priceWeekAgo: number | null;
-  priceMonthAgo: number | null;
-  priceYearAgo: number | null;
-  changeDayPct: number | null;
-  changeWeekPct: number | null;
-  changeMonthPct: number | null;
-  changeYearPct: number | null;
 }
 
 /** Get the Cardmarket trend price from a Card (for display in dropdowns etc.) */

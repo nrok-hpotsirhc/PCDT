@@ -5,10 +5,10 @@ import type {
   PortfolioRow,
   CardVariant,
   CardPrices,
+  CardmarketPrices,
 } from './types';
-import { getCardmarketPrice } from './types';
 
-/** Get market price from a snapshot – prefers Cardmarket, falls back to TCGPlayer */
+/** Get market price (trend) from a snapshot – prefers Cardmarket, falls back to TCGPlayer */
 export function getMarketPrice(
   snapshot: PriceSnapshot | null,
   cardId: string,
@@ -34,6 +34,15 @@ export function getMarketPrice(
   }
 
   return null;
+}
+
+/** Extract full Cardmarket price set from snapshot */
+function getCardmarketPricesFromSnapshot(
+  snapshot: PriceSnapshot | null,
+  cardId: string,
+): CardmarketPrices | null {
+  if (!snapshot) return null;
+  return snapshot.prices[cardId]?.cardmarket?.prices ?? null;
 }
 
 export function getCurrency(
@@ -64,14 +73,30 @@ export function calcPctChange(
   return ((current - previous) / previous) * 100;
 }
 
+/** Extract the Cardmarket price fields for a given card + variant, using snapshot or live card data */
+function resolveCardmarketFields(
+  card: Card,
+  variant: CardVariant,
+  latestPrices: PriceSnapshot | null,
+): { trendPrice: number | null; lowPrice: number | null; avg1: number | null; avg7: number | null; avg30: number | null } {
+  // Try snapshot first, then live card data
+  const cm = getCardmarketPricesFromSnapshot(latestPrices, card.id) ?? card.cardmarket?.prices ?? null;
+  if (!cm) return { trendPrice: null, lowPrice: null, avg1: null, avg7: null, avg30: null };
+
+  const isReverse = variant === 'reverseHolofoil';
+  return {
+    trendPrice: isReverse ? (cm.reverseHoloTrend ?? cm.reverseHoloSell ?? null) : (cm.trendPrice ?? cm.averageSellPrice ?? null),
+    lowPrice: isReverse ? (cm.reverseHoloLow ?? null) : (cm.lowPrice ?? null),
+    avg1: isReverse ? (cm.reverseHoloAvg1 ?? null) : (cm.avg1 ?? null),
+    avg7: isReverse ? (cm.reverseHoloAvg7 ?? null) : (cm.avg7 ?? null),
+    avg30: isReverse ? (cm.reverseHoloAvg30 ?? null) : (cm.avg30 ?? null),
+  };
+}
+
 export function buildPortfolioRows(
   userCards: UserCard[],
   cards: Card[],
   latestPrices: PriceSnapshot | null,
-  dayAgoPrices: PriceSnapshot | null,
-  weekAgoPrices: PriceSnapshot | null,
-  monthAgoPrices: PriceSnapshot | null,
-  yearAgoPrices: PriceSnapshot | null,
 ): PortfolioRow[] {
   const cardMap = new Map(cards.map((c) => [c.id, c]));
 
@@ -80,32 +105,20 @@ export function buildPortfolioRows(
       const card = cardMap.get(uc.cardId);
       if (!card) return null;
 
-      // Use snapshot price if available, otherwise fall back to card's live Cardmarket price
-      const currentPrice = getMarketPrice(latestPrices, uc.cardId, uc.variant)
-        ?? getCardmarketPrice(card, uc.variant);
-      const priceDayAgo = getMarketPrice(dayAgoPrices, uc.cardId, uc.variant);
-      const priceWeekAgo = getMarketPrice(weekAgoPrices, uc.cardId, uc.variant);
-      const priceMonthAgo = getMarketPrice(monthAgoPrices, uc.cardId, uc.variant);
-      const priceYearAgo = getMarketPrice(yearAgoPrices, uc.cardId, uc.variant);
-
-      // If current from live API, use card's cardmarket URL
+      const prices = resolveCardmarketFields(card, uc.variant, latestPrices);
       const sourceUrl = getSourceUrl(latestPrices, uc.cardId)
         ?? card.cardmarket?.url ?? null;
 
       return {
         userCard: uc,
         card,
-        currentPrice,
+        currentPrice: prices.trendPrice,
+        lowPrice: prices.lowPrice,
+        avg1: prices.avg1,
+        avg7: prices.avg7,
+        avg30: prices.avg30,
         currency: getCurrency(latestPrices, uc.cardId),
         sourceUrl,
-        priceDayAgo,
-        priceWeekAgo,
-        priceMonthAgo,
-        priceYearAgo,
-        changeDayPct: calcPctChange(currentPrice, priceDayAgo),
-        changeWeekPct: calcPctChange(currentPrice, priceWeekAgo),
-        changeMonthPct: calcPctChange(currentPrice, priceMonthAgo),
-        changeYearPct: calcPctChange(currentPrice, priceYearAgo),
       };
     })
     .filter((row): row is PortfolioRow => row !== null);

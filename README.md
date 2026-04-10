@@ -116,7 +116,7 @@ The repository includes a GitHub Actions workflow (`.github/workflows/price-sync
 
 - Click column headers to **sort**
 - Use the search bar to **filter** across all columns
-- Price trend arrows show 24h / 7d / 30d / 1y changes
+- Price columns show: From (lowest listing), Trend, Ø 1d, Ø 7d, Ø 30d
 
 ### Excel import
 
@@ -127,6 +127,170 @@ The repository includes a GitHub Actions workflow (`.github/workflows/price-sync
 ### Language
 
 Click the **DE / EN** toggle button in the top-right header to switch between German and English.
+
+---
+
+## Deploy on a Raspberry Pi (self-hosted)
+
+You can host the app on a Raspberry Pi in your local network. Every device on your Wi-Fi can then open it in the browser — no GitHub Pages needed.
+
+### What you need
+
+- Raspberry Pi (any model with network, e.g. Pi 3 / 4 / 5 / Zero 2 W)
+- Raspberry Pi OS (Lite or Desktop) installed and connected to your network
+- SSH access **or** keyboard + monitor attached
+
+### Step 1 — Install Node.js on the Pi
+
+Connect to your Pi via SSH (or open a terminal on the Pi):
+
+```bash
+ssh pi@raspberrypi.local
+# Default password: raspberry (change it with `passwd` if you haven't)
+```
+
+Install Node.js 20:
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash -
+sudo apt-get install -y nodejs
+```
+
+Verify:
+
+```bash
+node -v   # should print v20.x.x
+npm -v    # should print 10.x.x
+```
+
+### Step 2 — Clone the repository
+
+```bash
+cd ~
+git clone https://github.com/nrok-hpotsirhc/32_PokemonDB.git
+cd 32_PokemonDB
+```
+
+> If you have your own fork, replace the URL with your fork's URL.
+
+### Step 3 — Change the base path
+
+Since the app won't be in a subfolder, change the `base` to `'/'`:
+
+```bash
+nano app/vite.config.ts
+```
+
+Change this line:
+
+```ts
+  base: '/32_PokemonDB/',
+```
+
+to:
+
+```ts
+  base: '/',
+```
+
+Save with `Ctrl+O`, `Enter`, then exit with `Ctrl+X`.
+
+### Step 4 — Build the app
+
+```bash
+cd app
+npm install
+npm run build
+```
+
+This creates a `dist/` folder with the finished website files.
+
+### Step 5 — Install and configure Nginx
+
+```bash
+sudo apt-get install -y nginx
+```
+
+Create a config file for the app:
+
+```bash
+sudo nano /etc/nginx/sites-available/pokemon-tracker
+```
+
+Paste this (replace `pi` with your username if different):
+
+```nginx
+server {
+    listen 80;
+    server_name _;
+
+    root /home/pi/32_PokemonDB/app/dist;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+```
+
+Save and exit (`Ctrl+O`, `Enter`, `Ctrl+X`).
+
+Enable the site and disable the default:
+
+```bash
+sudo ln -sf /etc/nginx/sites-available/pokemon-tracker /etc/nginx/sites-enabled/
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t            # should say "syntax is ok"
+sudo systemctl restart nginx
+```
+
+### Step 6 — Open in your browser
+
+Find your Pi's IP address:
+
+```bash
+hostname -I
+# Example output: 192.168.1.42
+```
+
+On **any device** in your network, open:
+
+```
+http://192.168.1.42
+```
+
+or if mDNS works on your network:
+
+```
+http://raspberrypi.local
+```
+
+Done! The Pokémon Card Tracker is now running on your Pi.
+
+### Step 7 — Auto-start on boot (already done)
+
+Nginx starts automatically on boot by default. Your app is a static site — no extra process to manage.
+
+### Updating the app later
+
+```bash
+cd ~/32_PokemonDB
+git pull
+cd app
+npm install
+npm run build
+# That's it — Nginx serves the new files immediately
+```
+
+### Optional: access from the internet
+
+If you want to access your Pi from outside your home network:
+
+1. Set up **port forwarding** on your router (forward port 80 to your Pi's IP)
+2. Use a **free dynamic DNS** service like [DuckDNS](https://www.duckdns.org/) so you don't need to remember your IP
+3. For HTTPS, install [Certbot](https://certbot.eff.org/): `sudo apt install certbot python3-certbot-nginx` then `sudo certbot --nginx`
+
+> **Security note:** Exposing a Pi to the internet requires keeping the OS and Nginx updated. For home use, local-only access is recommended.
 
 ---
 
