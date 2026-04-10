@@ -1,0 +1,250 @@
+[
+  {
+    "id": "base1-4",
+    "name": "Charizard",
+    "supertype": "Pokémon",
+    "subtypes": ["Stage 2"],
+    "hp": "120",
+    "types": ["Fire"],
+    "set": {
+      "id": "base1",
+      "name": "Base Set",
+      "series": "Base",
+      "releaseDate": "1999/01/09",
+      "images": {
+        "symbol": "https://images.pokemontcg.io/base1/symbol.png",
+        "logo": "https://images.pokemontcg.io/base1/logo.png"
+      }
+    },
+    "number": "4",
+    "rarity": "Rare Holo",
+    "artist": "Mitsuhiro Arita",
+    "images": {
+      "small": "https://images.pokemontcg.io/base1/4.png",
+      "large": "https://images.pokemontcg.io/base1/4_hires.png"
+    },
+    "tcgplayer": {
+      "url": "https://www.tcgplayer.com/product/44481/pokemon-base-set-charizard",
+      "prices": {
+        "holofoil": { "low": 180.00, "mid": 280.00, "high": 550.00, "market": 299.99 }
+      }
+    }
+  },
+  {
+    "id": "base1-2",
+    "name": "Blastoise",
+    "supertype": "Pokémon",
+    "subtypes": ["Stage 2"],
+    "hp": "100",
+    "types": ["Water"],
+    "set": {
+      "id": "base1",
+      "name": "Base Set",
+      "series": "Base",
+      "releaseDate": "1999/01/09",
+      "images": {
+        "symbol": "https://images.pokemontcg.io/base1/symbol.png",
+        "logo": "https://images.pokemontcg.io/base1/logo.png"
+      }
+    },
+    "number": "2",
+    "rarity": "Rare Holo",
+    "artist": "Ken Sugimori",
+    "images": {
+      "small": "https://images.pokemontcg.io/base1/2.png",
+      "large": "https://images.pokemontcg.io/base1/2_hires.png"
+    },
+    "tcgplayer": {
+      "url": "https://www.tcgplayer.com/product/44479/pokemon-base-set-blastoise",
+      "prices": {
+        "holofoil": { "low": 55.00, "mid": 85.00, "high": 180.00, "market": 89.99 }
+      }
+    }
+  },
+  {
+    "id": "base1-15",
+    "name": "Venusaur",
+    "supertype": "Pokémon",
+    "subtypes": ["Stage 2"],
+    "hp": "100",
+    "types": ["Grass"],
+    "set": {
+      "id": "base1",
+      "name": "Base Set",
+      "series": "Base",
+      "releaseDate": "1999/01/09",
+      "images": {
+        "symbol": "https://images.pokemontcg.io/base1/symbol.png",
+        "logo": "https://images.pokemontcg.io/base1/logo.png"
+      }
+    },
+    "number": "15",
+    "rarity": "Rare Holo",
+    "artist": "Mitsuhiro Arita",
+    "images": {
+      "small": "https://images.pokemontcg.io/base1/15.png",
+      "large": "https://images.pokemontcg.io/base1/15_hires.png"
+    },
+    "tcgplayer": {
+      "url": "https://www.tcgplayer.com/product/44492/pokemon-base-set-venusaur",
+      "prices": {
+        "holofoil": { "low": 42.00, "mid": 65.00, "high": 120.00, "market": 69.99 }
+      }
+    }
+  },
+  {
+    "id": "sv3pt5-197",
+    "name": "Charizard ex",
+    "supertype": "Pokémon",
+    "subtypes": ["Stage 2", "ex"],
+    "hp": "330",
+    "types": ["Fire"],
+    "set": {
+      "id": "sv3pt5",
+      "name": "151",
+      "series": "Scarlet & Violet",
+      "releaseDate": "2023/09/22",
+      "images": {
+        "symbol": "https://images.pokemontcg.io/sv3pt5/symbol.png",
+        "logo": "https://images.pokemontcg.io/sv3pt5/logo.png"
+      }
+    },
+    "number": "197",
+    "rarity": "Special Illustration Rare",
+    "artist": "AKIRA EGAWA",
+    "images": {
+      "small": "https://images.pokemontcg.io/sv3pt5/197.png",
+      "large": "https://images.pokemontcg.io/sv3pt5/197_hires.png"
+    },
+    "tcgplayer": {
+      "url": "https://www.tcgplayer.com/product/531210/pokemon-sv-151-charizard-ex",
+      "prices": {
+        "holofoil": { "low": 85.00, "mid": 110.00, "high": 160.00, "market": 115.00 }
+      }
+    }
+  },
+  {
+    "id": "swsh12pt5-160",
+    "name": "Pikachu VMAX",
+    "supertype": "Pokémon",
+    "subtypes": ["VMAX"],
+    "hp": "310",
+    "types": ["Lightning"],
+    "set": {
+      "id": "swsh12pt5",
+      "name": "Crown Zenith",
+      "series": "Sword & Shield",
+      "releaseDate": "2023/01/20",
+      "images": {
+        "symbol": "https://images.pokemontcg.io/swsh12pt5/symbol.png",
+        "logo": "https://images.pokemontcg.io/swsh12pt5/logo.png"
+      }
+    },
+    "number": "160",
+    "rarity": "Ultra Rare",
+    "artist": "HYOGONOSUKE",
+    "images": {
+      "small": "https://images.pokemontcg.io/swsh12pt5/160.png",
+      "large": "https://images.pokemontcg.io/swsh12pt5/160_hires.png"
+    },
+    "tcgplayer": {
+      "url": "https://www.tcgplayer.com/product/489620/pokemon-crown-zenith-pikachu-vmax",
+      "prices": {
+        "holofoil": { "low": 12.00, "mid": 18.50, "high": 30.00, "market": 19.99 }
+      }
+    }
+  },
+  {
+    "id": "sv4-228",
+    "name": "Mew ex",
+    "supertype": "Pokémon",
+    "subtypes": ["Basic", "ex"],
+    "hp": "180",
+    "types": ["Psychic"],
+    "set": {
+      "id": "sv4",
+      "name": "Paradox Rift",
+      "series": "Scarlet & Violet",
+      "releaseDate": "2023/11/03",
+      "images": {
+        "symbol": "https://images.pokemontcg.io/sv4/symbol.png",
+        "logo": "https://images.pokemontcg.io/sv4/logo.png"
+      }
+    },
+    "number": "228",
+    "rarity": "Special Illustration Rare",
+    "artist": "Teeziro",
+    "images": {
+      "small": "https://images.pokemontcg.io/sv4/228.png",
+      "large": "https://images.pokemontcg.io/sv4/228_hires.png"
+    },
+    "tcgplayer": {
+      "url": "https://www.tcgplayer.com/product/547890/pokemon-paradox-rift-mew-ex",
+      "prices": {
+        "holofoil": { "low": 28.00, "mid": 42.00, "high": 65.00, "market": 44.50 }
+      }
+    }
+  },
+  {
+    "id": "base1-58",
+    "name": "Pikachu",
+    "supertype": "Pokémon",
+    "subtypes": ["Basic"],
+    "hp": "40",
+    "types": ["Lightning"],
+    "set": {
+      "id": "base1",
+      "name": "Base Set",
+      "series": "Base",
+      "releaseDate": "1999/01/09",
+      "images": {
+        "symbol": "https://images.pokemontcg.io/base1/symbol.png",
+        "logo": "https://images.pokemontcg.io/base1/logo.png"
+      }
+    },
+    "number": "58",
+    "rarity": "Common",
+    "artist": "Mitsuhiro Arita",
+    "images": {
+      "small": "https://images.pokemontcg.io/base1/58.png",
+      "large": "https://images.pokemontcg.io/base1/58_hires.png"
+    },
+    "tcgplayer": {
+      "url": "https://www.tcgplayer.com/product/44535/pokemon-base-set-pikachu",
+      "prices": {
+        "normal": { "low": 3.50, "mid": 6.00, "high": 15.00, "market": 5.99 }
+      }
+    }
+  },
+  {
+    "id": "sv6-230",
+    "name": "Eevee",
+    "supertype": "Pokémon",
+    "subtypes": ["Basic"],
+    "hp": "60",
+    "types": ["Colorless"],
+    "set": {
+      "id": "sv6",
+      "name": "Twilight Masquerade",
+      "series": "Scarlet & Violet",
+      "releaseDate": "2024/05/24",
+      "images": {
+        "symbol": "https://images.pokemontcg.io/sv6/symbol.png",
+        "logo": "https://images.pokemontcg.io/sv6/logo.png"
+      }
+    },
+    "number": "230",
+    "rarity": "Illustration Rare",
+    "artist": "Naoyo Kimura",
+    "images": {
+      "small": "https://images.pokemontcg.io/sv6/230.png",
+      "large": "https://images.pokemontcg.io/sv6/230_hires.png"
+    },
+    "tcgplayer": {
+      "url": "https://www.tcgplayer.com/product/590120/pokemon-twilight-masquerade-eevee",
+      "prices": {
+        "holofoil": { "low": 2.50, "mid": 4.00, "high": 8.00, "market": 3.75 }
+      }
+    }
+  }
+]

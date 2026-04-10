@@ -1,0 +1,34 @@
+{
+  "name": "pokemon-card-tracker",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Pokémon Card Portfolio Tracker – Track your collection's market value",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "sync-prices": "npx tsx ../scripts/sync-prices.ts"
+  },
+  "keywords": ["pokemon", "tcg", "portfolio", "tracker"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@tanstack/react-table": "^8.21.3",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "recharts": "^3.8.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.2.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.7.0",
+    "autoprefixer": "^10.4.27",
+    "react-router-dom": "^7.14.0",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^6.0.2",
+    "vite": "^6.4.2"
+  }
+}

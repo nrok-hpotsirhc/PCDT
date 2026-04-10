@@ -1,0 +1,25 @@
+@import 'tailwindcss';
+
+:root {
+  --color-gain: #16a34a;
+  --color-loss: #dc2626;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Smooth table header interactions */
+th[data-sortable] {
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Card image hover zoom */
+.card-thumb {
+  transition: transform 0.2s ease;
+}
+.card-thumb:hover {
+  transform: scale(1.5);
+  z-index: 10;
+}

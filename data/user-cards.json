@@ -1,0 +1,100 @@
+[
+  {
+    "id": "uc-001",
+    "cardId": "base1-4",
+    "owner": "default",
+    "condition": "NM",
+    "variant": "holofoil",
+    "grade": { "service": "PSA", "score": 8 },
+    "quantity": 1,
+    "purchasePrice": 180.00,
+    "purchaseCurrency": "EUR",
+    "purchaseDate": "2023-06-15",
+    "notes": "Gekauft auf Cardmarket",
+    "addedAt": "2024-01-10T10:00:00Z"
+  },
+  {
+    "id": "uc-002",
+    "cardId": "base1-2",
+    "owner": "default",
+    "condition": "LP",
+    "variant": "holofoil",
+    "quantity": 1,
+    "purchasePrice": 45.00,
+    "purchaseCurrency": "EUR",
+    "purchaseDate": "2023-08-20",
+    "addedAt": "2024-01-10T10:01:00Z"
+  },
+  {
+    "id": "uc-003",
+    "cardId": "base1-15",
+    "owner": "default",
+    "condition": "NM",
+    "variant": "holofoil",
+    "quantity": 1,
+    "purchasePrice": 35.00,
+    "purchaseCurrency": "EUR",
+    "purchaseDate": "2023-09-05",
+    "addedAt": "2024-01-10T10:02:00Z"
+  },
+  {
+    "id": "uc-004",
+    "cardId": "sv3pt5-197",
+    "owner": "default",
+    "condition": "NM",
+    "variant": "holofoil",
+    "quantity": 1,
+    "purchasePrice": 90.00,
+    "purchaseCurrency": "EUR",
+    "purchaseDate": "2024-02-14",
+    "addedAt": "2024-03-01T12:00:00Z"
+  },
+  {
+    "id": "uc-005",
+    "cardId": "swsh12pt5-160",
+    "owner": "default",
+    "condition": "NM",
+    "variant": "holofoil",
+    "quantity": 2,
+    "purchasePrice": 15.00,
+    "purchaseCurrency": "EUR",
+    "purchaseDate": "2024-01-20",
+    "addedAt": "2024-02-01T08:00:00Z"
+  },
+  {
+    "id": "uc-006",
+    "cardId": "sv4-228",
+    "owner": "default",
+    "condition": "NM",
+    "variant": "holofoil",
+    "quantity": 1,
+    "purchasePrice": 38.00,
+    "purchaseCurrency": "EUR",
+    "purchaseDate": "2024-04-10",
+    "addedAt": "2024-04-15T14:00:00Z"
+  },
+  {
+    "id": "uc-007",
+    "cardId": "base1-58",
+    "owner": "default",
+    "condition": "MP",
+    "variant": "normal",
+    "quantity": 3,
+    "purchasePrice": 2.00,
+    "purchaseCurrency": "EUR",
+    "purchaseDate": "2022-12-01",
+    "addedAt": "2024-01-10T10:03:00Z"
+  },
+  {
+    "id": "uc-008",
+    "cardId": "sv6-230",
+    "owner": "default",
+    "condition": "NM",
+    "variant": "holofoil",
+    "quantity": 1,
+    "purchasePrice": 3.50,
+    "purchaseCurrency": "EUR",
+    "purchaseDate": "2024-06-01",
+    "addedAt": "2024-06-05T09:00:00Z"
+  }
+]
