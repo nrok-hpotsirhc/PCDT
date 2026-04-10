@@ -55,21 +55,38 @@ export function CardTable({ rows, onRowClick }: CardTableProps) {
           </div>
         ),
       }),
+      columnHelper.accessor((r) => r.userCard.owner, {
+        id: 'owner',
+        header: 'Owner',
+        cell: ({ getValue }) => (
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{getValue()}</span>
+        ),
+      }),
       columnHelper.accessor((r) => r.card.rarity ?? '', {
         id: 'rarity',
         header: 'Rarity',
         cell: ({ getValue }) => (
-          <span className="text-xs text-gray-600">{getValue()}</span>
+          <span className="text-xs text-gray-600 dark:text-gray-400">{getValue()}</span>
         ),
       }),
       columnHelper.accessor((r) => r.userCard.condition, {
         id: 'condition',
         header: 'Condition',
-        cell: ({ getValue }) => (
-          <span className="text-xs px-1.5 py-0.5 bg-gray-100 rounded">
-            {CONDITION_LABELS[getValue()]}
-          </span>
-        ),
+        cell: ({ getValue }) => {
+          const c = getValue();
+          const colors: Record<string, string> = {
+            NM: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+            LP: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+            MP: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+            HP: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+            DMG: 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
+          };
+          return (
+            <span className={`text-xs font-semibold px-2 py-1 rounded-full ${colors[c] ?? ''}`}>
+              {CONDITION_LABELS[c]}
+            </span>
+          );
+        },
       }),
       columnHelper.accessor((r) => r.userCard.quantity, {
         id: 'qty',
@@ -155,6 +172,8 @@ export function CardTable({ rows, onRowClick }: CardTableProps) {
       return (
         r.card.name.toLowerCase().includes(search) ||
         r.card.set.name.toLowerCase().includes(search) ||
+        r.userCard.owner.toLowerCase().includes(search) ||
+        CONDITION_LABELS[r.userCard.condition].toLowerCase().includes(search) ||
         (r.card.rarity?.toLowerCase().includes(search) ?? false)
       );
     },

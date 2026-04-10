@@ -2,7 +2,7 @@
   {
     "id": "uc-001",
     "cardId": "base1-4",
-    "owner": "default",
+    "owner": "Christoph",
     "condition": "NM",
     "variant": "holofoil",
     "grade": { "service": "PSA", "score": 8 },
@@ -16,7 +16,7 @@
   {
     "id": "uc-002",
     "cardId": "base1-2",
-    "owner": "default",
+    "owner": "Christoph",
     "condition": "LP",
     "variant": "holofoil",
     "quantity": 1,
@@ -28,7 +28,7 @@
   {
     "id": "uc-003",
     "cardId": "base1-15",
-    "owner": "default",
+    "owner": "Max",
     "condition": "NM",
     "variant": "holofoil",
     "quantity": 1,
@@ -40,7 +40,7 @@
   {
     "id": "uc-004",
     "cardId": "sv3pt5-197",
-    "owner": "default",
+    "owner": "Christoph",
     "condition": "NM",
     "variant": "holofoil",
     "quantity": 1,
@@ -52,7 +52,7 @@
   {
     "id": "uc-005",
     "cardId": "swsh12pt5-160",
-    "owner": "default",
+    "owner": "Max",
     "condition": "NM",
     "variant": "holofoil",
     "quantity": 2,
@@ -64,7 +64,7 @@
   {
     "id": "uc-006",
     "cardId": "sv4-228",
-    "owner": "default",
+    "owner": "Lisa",
     "condition": "NM",
     "variant": "holofoil",
     "quantity": 1,
@@ -76,7 +76,7 @@
   {
     "id": "uc-007",
     "cardId": "base1-58",
-    "owner": "default",
+    "owner": "Lisa",
     "condition": "MP",
     "variant": "normal",
     "quantity": 3,
@@ -88,8 +88,8 @@
   {
     "id": "uc-008",
     "cardId": "sv6-230",
-    "owner": "default",
-    "condition": "NM",
+    "owner": "Christoph",
+    "condition": "HP",
     "variant": "holofoil",
     "quantity": 1,
     "purchasePrice": 3.50,
