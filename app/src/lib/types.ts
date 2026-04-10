@@ -5,10 +5,17 @@ export interface CardSet {
   name: string;
   series: string;
   releaseDate: string;
+  ptcgoCode?: string;
   images: {
     symbol: string;
     logo: string;
   };
+}
+
+/** Format set code + number, e.g. "PAL 032" or "BS 4" */
+export function formatSetNumber(set: CardSet, number: string): string {
+  const code = set.ptcgoCode ?? set.id.toUpperCase();
+  return `${code} ${number}`;
 }
 
 export interface CardPrices {

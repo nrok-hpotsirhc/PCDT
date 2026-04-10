@@ -10,8 +10,9 @@ import {
   type SortingState,
 } from '@tanstack/react-table';
 import type { PortfolioRow } from '@/lib/types';
-import { CONDITION_LABELS } from '@/lib/types';
+import { CONDITION_LABELS, formatSetNumber } from '@/lib/types';
 import { formatCurrency } from '@/lib/price-utils';
+import { useI18n } from '@/lib/i18n';
 import { PriceIndicator } from './PriceIndicator';
 import { CurrencyBadge } from './CurrencyBadge';
 
@@ -27,6 +28,7 @@ export function CardTable({ rows, onRowClick }: CardTableProps) {
     { id: 'currentPrice', desc: true },
   ]);
   const [globalFilter, setGlobalFilter] = useState('');
+  const { t } = useI18n();
 
   const columns = useMemo(
     () => [
@@ -45,33 +47,33 @@ export function CardTable({ rows, onRowClick }: CardTableProps) {
       }),
       columnHelper.accessor((r) => r.card.name, {
         id: 'name',
-        header: 'Card',
+        header: t('table.card'),
         cell: ({ row }) => (
           <div>
             <div className="font-medium text-sm">{row.original.card.name}</div>
             <div className="text-xs text-gray-500">
-              {row.original.card.set.name} · #{row.original.card.number}
+              <span className="font-semibold text-gray-600 dark:text-gray-400">{formatSetNumber(row.original.card.set, row.original.card.number)}</span> · {row.original.card.set.name}
             </div>
           </div>
         ),
       }),
       columnHelper.accessor((r) => r.userCard.owner, {
         id: 'owner',
-        header: 'Owner',
+        header: t('table.owner'),
         cell: ({ getValue }) => (
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{getValue()}</span>
         ),
       }),
       columnHelper.accessor((r) => r.card.rarity ?? '', {
         id: 'rarity',
-        header: 'Rarity',
+        header: t('table.rarity'),
         cell: ({ getValue }) => (
           <span className="text-xs text-gray-600 dark:text-gray-400">{getValue()}</span>
         ),
       }),
       columnHelper.accessor((r) => r.userCard.condition, {
         id: 'condition',
-        header: 'Condition',
+        header: t('table.condition'),
         cell: ({ getValue }) => {
           const c = getValue();
           const colors: Record<string, string> = {
@@ -90,11 +92,11 @@ export function CardTable({ rows, onRowClick }: CardTableProps) {
       }),
       columnHelper.accessor((r) => r.userCard.quantity, {
         id: 'qty',
-        header: 'Qty',
+        header: t('table.qty'),
         size: 50,
       }),
       columnHelper.accessor('currentPrice', {
-        header: () => <span title="Current Market Price">Price</span>,
+        header: () => <span title="Current Market Price">{t('table.price')}</span>,
         sortingFn: 'basic',
         cell: ({ row }) => (
           <CurrencyBadge
@@ -157,7 +159,7 @@ export function CardTable({ rows, onRowClick }: CardTableProps) {
         ),
       }),
     ],
-    [],
+    [t],
   );
 
   const table = useReactTable({
@@ -192,13 +194,13 @@ export function CardTable({ rows, onRowClick }: CardTableProps) {
       <div className="flex items-center gap-4">
         <input
           type="text"
-          placeholder="Search cards..."
+          placeholder={t('table.search')}
           value={globalFilter}
           onChange={(e) => setGlobalFilter(e.target.value)}
           className="px-3 py-2 border border-gray-300 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
         <span className="text-sm text-gray-500">
-          {table.getFilteredRowModel().rows.length} cards
+          {table.getFilteredRowModel().rows.length} {t('table.cardsCount')}
         </span>
       </div>
 
@@ -248,7 +250,7 @@ export function CardTable({ rows, onRowClick }: CardTableProps) {
       {table.getPageCount() > 1 && (
         <div className="flex items-center justify-between text-sm text-gray-600">
           <div>
-            Page {table.getState().pagination.pageIndex + 1} of {table.getPageCount()}
+            {t('table.page')} {table.getState().pagination.pageIndex + 1} {t('table.of')} {table.getPageCount()}
           </div>
           <div className="flex gap-2">
             <button
@@ -256,14 +258,14 @@ export function CardTable({ rows, onRowClick }: CardTableProps) {
               disabled={!table.getCanPreviousPage()}
               className="px-3 py-1 border border-gray-300 rounded disabled:opacity-40"
             >
-              Previous
+              {t('table.previous')}
             </button>
             <button
               onClick={() => table.nextPage()}
               disabled={!table.getCanNextPage()}
               className="px-3 py-1 border border-gray-300 rounded disabled:opacity-40"
             >
-              Next
+              {t('table.next')}
             </button>
           </div>
         </div>

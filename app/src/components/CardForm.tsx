@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Card, Condition, CardVariant } from '@/lib/types';
+import { formatSetNumber } from '@/lib/types';
 import { searchCardsApi, fetchCardById, type SearchResult } from '@/lib/pokemon-api';
 import { generateId, getAvailableVariants } from '@/lib/card-store';
+import { useI18n } from '@/lib/i18n';
 import type { UserCard } from '@/lib/types';
 
 interface CardFormProps {
@@ -30,7 +32,11 @@ export function CardForm({ cards, onSubmit, onCancel, editCard }: CardFormProps)
   const [gradingService, setGradingService] = useState('');
   const [gradingScore, setGradingScore] = useState('');
   const [notes, setNotes] = useState('');
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+  const { t } = useI18n();
+
+  const todayStr = new Date().toISOString().slice(0, 10);
 
   useEffect(() => {
     if (editCard) {
@@ -53,14 +59,12 @@ export function CardForm({ cards, onSubmit, onCancel, editCard }: CardFormProps)
       setOwner(editCard.owner);
       setPurchasePrice(editCard.purchasePrice?.toString() ?? '');
       setPurchaseCurrency(editCard.purchaseCurrency ?? 'EUR');
-      setPurchaseDate(editCard.purchaseDate ?? '');
+      setPurchaseDate(editCard.purchaseDate ?? todayStr);
       setGradingService(editCard.grade?.service ?? '');
       setGradingScore(editCard.grade?.score?.toString() ?? '');
       setNotes(editCard.notes ?? '');
     }
   }, [editCard, cards]);
-
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -98,10 +102,12 @@ export function CardForm({ cards, onSubmit, onCancel, editCard }: CardFormProps)
 
   function handleSelectCard(card: Card) {
     setSelectedCard(card);
-    setQuery(`${card.name} (${card.set.name} #${card.number})`);
+    setQuery(`${card.name} (${formatSetNumber(card.set, card.number)})`);
     setShowDropdown(false);
     const variants = getAvailableVariants(card);
     if (variants[0]) setVariant(variants[0] as CardVariant);
+    // Set default purchase date to today if not editing
+    if (!editCard) setPurchaseDate(todayStr);
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -134,14 +140,14 @@ export function CardForm({ cards, onSubmit, onCancel, editCard }: CardFormProps)
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Card Search */}
       <div className="relative" ref={dropdownRef}>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Card *</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('form.card')} *</label>
         <input
           type="text"
           value={query}
           onChange={(e) => handleSearch(e.target.value)}
           onFocus={() => results.length > 0 && setShowDropdown(true)}
-          placeholder="Search by card name or number..."
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder={t('form.searchPlaceholder')}
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-800 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           required
         />
         {searching && (
@@ -162,30 +168,30 @@ export function CardForm({ cards, onSubmit, onCancel, editCard }: CardFormProps)
                 <div>
                   <div className="text-sm font-medium">{card.name}</div>
                   <div className="text-xs text-gray-500">
-                    {card.set.name} · #{card.number} · {card.rarity}
+                    <span className="font-semibold text-gray-700 dark:text-gray-300">{formatSetNumber(card.set, card.number)}</span> · {card.set.name} · {card.rarity}
                   </div>
                 </div>
               </button>
             ))}
             {totalCount > MAX_VISIBLE && (
               <div className="px-3 py-2 text-center text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-                +{totalCount - MAX_VISIBLE} weitere Ergebnisse – Suche verfeinern
+                +{totalCount - MAX_VISIBLE} {t('form.moreResults')}
               </div>
             )}
           </div>
         )}
         {showDropdown && !searching && results.length === 0 && query.length >= 2 && (
           <div className="absolute z-50 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 text-sm text-gray-500">
-            Keine Karten gefunden
+            {t('form.noResults')}
           </div>
         )}
         {selectedCard && (
-          <div className="mt-2 flex items-center gap-3 p-2 bg-blue-50 rounded-lg">
+          <div className="mt-2 flex items-center gap-3 p-2 bg-blue-50 dark:bg-blue-950 rounded-lg">
             <img src={selectedCard.images.small} alt="" className="w-12 h-16 object-contain" />
             <div>
-              <div className="font-medium text-sm">{selectedCard.name}</div>
-              <div className="text-xs text-gray-500">
-                {selectedCard.set.name} · #{selectedCard.number} · {selectedCard.rarity}
+              <div className="font-medium text-sm text-gray-900 dark:text-gray-100">{selectedCard.name}</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">
+                <span className="font-semibold">{formatSetNumber(selectedCard.set, selectedCard.number)}</span> · {selectedCard.set.name} · {selectedCard.rarity}
               </div>
             </div>
           </div>
@@ -195,7 +201,7 @@ export function CardForm({ cards, onSubmit, onCancel, editCard }: CardFormProps)
       {/* Row 1: Condition + Variant */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Condition *</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('form.condition')} *</label>
           <select
             value={condition}
             onChange={(e) => setCondition(e.target.value as Condition)}
@@ -209,7 +215,7 @@ export function CardForm({ cards, onSubmit, onCancel, editCard }: CardFormProps)
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Variant</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('form.variant')}</label>
           <select
             value={variant}
             onChange={(e) => setVariant(e.target.value as CardVariant)}
@@ -225,7 +231,7 @@ export function CardForm({ cards, onSubmit, onCancel, editCard }: CardFormProps)
       {/* Row 2: Quantity + Owner */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('form.quantity')}</label>
           <input
             type="number"
             min={1}
@@ -235,7 +241,7 @@ export function CardForm({ cards, onSubmit, onCancel, editCard }: CardFormProps)
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Owner</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('form.owner')}</label>
           <input
             type="text"
             value={owner}
@@ -248,7 +254,7 @@ export function CardForm({ cards, onSubmit, onCancel, editCard }: CardFormProps)
       {/* Row 3: Purchase */}
       <div className="grid grid-cols-3 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Purchase Price</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('form.purchasePrice')}</label>
           <input
             type="number"
             step="0.01"
@@ -259,7 +265,7 @@ export function CardForm({ cards, onSubmit, onCancel, editCard }: CardFormProps)
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('form.currency')}</label>
           <select
             value={purchaseCurrency}
             onChange={(e) => setPurchaseCurrency(e.target.value)}
@@ -272,7 +278,7 @@ export function CardForm({ cards, onSubmit, onCancel, editCard }: CardFormProps)
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Purchase Date</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('form.purchaseDate')}</label>
           <input
             type="date"
             value={purchaseDate}
@@ -285,20 +291,20 @@ export function CardForm({ cards, onSubmit, onCancel, editCard }: CardFormProps)
       {/* Row 4: Grading */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Grading Service</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('form.gradingService')}</label>
           <select
             value={gradingService}
             onChange={(e) => setGradingService(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
           >
-            <option value="">None</option>
+            <option value="">{t('form.none')}</option>
             <option value="PSA">PSA</option>
             <option value="BGS">BGS / Beckett</option>
             <option value="CGC">CGC</option>
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Grade</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('form.grade')}</label>
           <input
             type="number"
             step="0.5"
@@ -315,13 +321,13 @@ export function CardForm({ cards, onSubmit, onCancel, editCard }: CardFormProps)
 
       {/* Notes */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('form.notes')}</label>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={2}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none"
-          placeholder="Optional notes..."
+          placeholder={t('form.notesPlaceholder')}
         />
       </div>
 
@@ -332,14 +338,14 @@ export function CardForm({ cards, onSubmit, onCancel, editCard }: CardFormProps)
           disabled={!selectedCard}
           className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
         >
-          {editCard ? 'Update Card' : 'Add Card'}
+          {editCard ? t('form.update') : t('form.add')}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50"
+          className="px-4 py-2 border border-gray-300 text-gray-700 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
         >
-          Cancel
+          {t('form.cancel')}
         </button>
       </div>
     </form>

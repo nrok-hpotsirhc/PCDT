@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { parseExcelFile, downloadTemplate } from '@/lib/excel-parser';
+import { useI18n } from '@/lib/i18n';
 import type { UserCard } from '@/lib/types';
 
 interface ExcelImportProps {
@@ -10,6 +11,7 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
   const [dragActive, setDragActive] = useState(false);
   const [errors, setErrors] = useState<{ row: number; message: string }[]>([]);
   const [imported, setImported] = useState(0);
+  const { t } = useI18n();
 
   const handleFile = useCallback(
     async (file: File) => {
@@ -58,9 +60,9 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
       >
         <div className="text-3xl mb-2">📄</div>
         <p className="text-sm text-gray-600 dark:text-gray-400">
-          Drag & drop an Excel/CSV file here, or{' '}
+          {t('import.drop')}{' '}
           <label className="text-blue-600 hover:underline cursor-pointer">
-            browse
+            {t('import.browse')}
             <input
               type="file"
               accept=".xlsx,.xls,.csv"
@@ -70,7 +72,7 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
           </label>
         </p>
         <p className="text-xs text-gray-400 mt-2">
-          Supports .xlsx, .xls, .csv
+          {t('import.formats')}
         </p>
       </div>
 
@@ -79,13 +81,13 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
         onClick={() => downloadTemplate()}
         className="text-sm text-blue-600 hover:underline"
       >
-        ⬇ Download import template
+        {t('import.template')}
       </button>
 
       {/* Import result */}
       {imported > 0 && (
         <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-3 text-sm text-green-700 dark:text-green-300">
-          ✓ Successfully imported {imported} card(s)
+          ✓ {imported} {t('import.success')}
         </div>
       )}
 
@@ -93,7 +95,7 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
       {errors.length > 0 && (
         <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-lg p-3">
           <p className="text-sm font-medium text-red-700 dark:text-red-300 mb-2">
-            {errors.length} error(s) during import:
+            {errors.length} {t('import.errors')}
           </p>
           <ul className="text-xs text-red-600 dark:text-red-400 space-y-1 max-h-40 overflow-y-auto">
             {errors.map((err, i) => (

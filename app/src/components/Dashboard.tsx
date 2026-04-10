@@ -1,5 +1,6 @@
 import type { PortfolioRow } from '@/lib/types';
 import { formatCurrency, formatPct, totalPortfolioValue } from '@/lib/price-utils';
+import { useI18n } from '@/lib/i18n';
 import { PriceSparkline } from './PriceSparkline';
 
 interface DashboardProps {
@@ -7,6 +8,7 @@ interface DashboardProps {
 }
 
 export function Dashboard({ rows }: DashboardProps) {
+  const { t } = useI18n();
   const currency = rows[0]?.currency ?? 'USD';
   const total = totalPortfolioValue(rows);
 
@@ -52,36 +54,36 @@ export function Dashboard({ rows }: DashboardProps) {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
-          label="Portfolio Value"
+          label={t('dash.portfolioValue')}
           value={formatCurrency(total, currency)}
           change={totalChange}
           sparkline={totalSparkline}
         />
         <KpiCard
-          label="Total Cards"
+          label={t('dash.totalCards')}
           value={rows.reduce((s, r) => s + r.userCard.quantity, 0).toString()}
-          sublabel={`${rows.length} unique`}
+          sublabel={`${rows.length} ${t('dash.unique')}`}
         />
         <KpiCard
-          label="Most Valuable"
+          label={t('dash.mostValuable')}
           value={mostValuable[0] ? mostValuable[0].card.name : 'N/A'}
           sublabel={mostValuable[0] ? formatCurrency(mostValuable[0].currentPrice, currency) : ''}
         />
         <KpiCard
-          label="Avg Card Value"
+          label={t('dash.avgValue')}
           value={formatCurrency(rows.length > 0 ? total / rows.length : null, currency)}
         />
       </div>
 
       {/* Gainers & Losers */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <MoverList title="🔥 Top Gainers (24h)" rows={topGainers} currency={currency} />
-        <MoverList title="📉 Top Losers (24h)" rows={topLosers} currency={currency} />
+        <MoverList title={t('dash.topGainers')} rows={topGainers} currency={currency} />
+        <MoverList title={t('dash.topLosers')} rows={topLosers} currency={currency} />
       </div>
 
       {/* Most Valuable */}
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">💎 Most Valuable Cards</h3>
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">{t('dash.mostValuableCards')}</h3>
         <div className="space-y-2">
           {mostValuable.map((row) => (
             <div key={row.userCard.id} className="flex items-center gap-3">
@@ -152,11 +154,12 @@ function MoverList({
   rows: PortfolioRow[];
   currency: string;
 }) {
+  const { t } = useI18n();
   return (
     <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
       <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">{title}</h3>
       {rows.length === 0 ? (
-        <p className="text-xs text-gray-400">No data available</p>
+        <p className="text-xs text-gray-400">{t('dash.noData')}</p>
       ) : (
         <div className="space-y-2">
           {rows.map((row) => (

@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback } from 'react';
 import type { Card } from '@/lib/types';
+import { formatSetNumber } from '@/lib/types';
 import { searchCardsApi } from '@/lib/pokemon-api';
+import { useI18n } from '@/lib/i18n';
 
 interface OcrScannerProps {
   cards: Card[];
@@ -15,6 +17,7 @@ export function OcrScanner({ cards, onCardDetected }: OcrScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const { t } = useI18n();
 
   const startCamera = useCallback(async () => {
     setError(null);
@@ -117,14 +120,14 @@ export function OcrScanner({ cards, onCardDetected }: OcrScannerProps) {
         {status === 'idle' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
             <span className="text-4xl mb-3">📷</span>
-            <p className="text-sm opacity-80">Scan a Pokémon card with your camera</p>
+            <p className="text-sm opacity-80">{t('scan.idle')}</p>
           </div>
         )}
 
         {status === 'processing' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-white bg-black/70">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mb-3" />
-            <p className="text-sm">Analyzing card...</p>
+            <p className="text-sm">{t('scan.analyzing')}</p>
           </div>
         )}
 
@@ -132,7 +135,7 @@ export function OcrScanner({ cards, onCardDetected }: OcrScannerProps) {
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute inset-8 border-2 border-white/50 rounded-lg" />
             <p className="absolute bottom-4 left-0 right-0 text-center text-white text-xs opacity-70">
-              Position the card within the frame
+              {t('scan.position')}
             </p>
           </div>
         )}
@@ -145,7 +148,7 @@ export function OcrScanner({ cards, onCardDetected }: OcrScannerProps) {
             onClick={() => void startCamera()}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
           >
-            📷 Start Camera
+            {t('scan.startCamera')}
           </button>
         )}
         {status === 'camera' && (
@@ -154,13 +157,13 @@ export function OcrScanner({ cards, onCardDetected }: OcrScannerProps) {
               onClick={() => void captureAndScan()}
               className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700"
             >
-              ⚡ Capture & Scan
+              {t('scan.capture')}
             </button>
             <button
               onClick={reset}
               className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-50"
             >
-              Cancel
+              {t('scan.cancel')}
             </button>
           </>
         )}
@@ -169,7 +172,7 @@ export function OcrScanner({ cards, onCardDetected }: OcrScannerProps) {
             onClick={reset}
             className="px-4 py-2 border border-gray-300 text-gray-700 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
           >
-            Scan Again
+            {t('scan.again')}
           </button>
         )}
       </div>
@@ -185,14 +188,14 @@ export function OcrScanner({ cards, onCardDetected }: OcrScannerProps) {
       {status === 'result' && (
         <div className="space-y-3">
           <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">OCR Text:</p>
-            <pre className="text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{ocrText || 'No text detected'}</pre>
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{t('scan.ocrText')}</p>
+            <pre className="text-xs text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{ocrText || t('scan.noText')}</pre>
           </div>
 
           {matchedCards.length > 0 && (
             <div>
               <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Possible matches:
+                {t('scan.matches')}
               </p>
               <div className="space-y-2">
                 {matchedCards.map((card) => (
@@ -205,10 +208,10 @@ export function OcrScanner({ cards, onCardDetected }: OcrScannerProps) {
                     <div>
                       <div className="text-sm font-medium">{card.name}</div>
                       <div className="text-xs text-gray-500">
-                        {card.set.name} · #{card.number} · {card.rarity}
+                        {card.set.name} · {formatSetNumber(card.set, card.number)} · {card.rarity}
                       </div>
                     </div>
-                    <span className="ml-auto text-xs text-blue-600">Select →</span>
+                    <span className="ml-auto text-xs text-blue-600">{t('scan.select')}</span>
                   </button>
                 ))}
               </div>
@@ -216,7 +219,7 @@ export function OcrScanner({ cards, onCardDetected }: OcrScannerProps) {
           )}
 
           {matchedCards.length === 0 && ocrText && (
-            <p className="text-sm text-gray-500">No matching cards found. Try a clearer image.</p>
+            <p className="text-sm text-gray-500">{t('scan.noMatch')}</p>
           )}
         </div>
       )}

@@ -1,6 +1,7 @@
 import type { PortfolioRow } from '@/lib/types';
-import { CONDITION_LABELS } from '@/lib/types';
+import { CONDITION_LABELS, formatSetNumber } from '@/lib/types';
 import { formatCurrency, formatPct } from '@/lib/price-utils';
+import { useI18n } from '@/lib/i18n';
 import { PriceIndicator } from './PriceIndicator';
 import { PriceSparkline } from './PriceSparkline';
 
@@ -13,6 +14,7 @@ interface CardDetailProps {
 
 export function CardDetail({ row, onClose, onEdit, onDelete }: CardDetailProps) {
   const { card, userCard, currentPrice, currency, sourceUrl } = row;
+  const { t } = useI18n();
 
   const priceHistory = [
     { label: '1 Year Ago', price: row.priceYearAgo, change: row.changeYearPct },
@@ -39,7 +41,7 @@ export function CardDetail({ row, onClose, onEdit, onDelete }: CardDetailProps) 
           <div className="flex-1 min-w-0">
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">{card.name}</h2>
             <p className="text-sm text-gray-500 mt-1">
-              {card.set.name} · #{card.number} · {card.rarity}
+              {card.set.name} · {formatSetNumber(card.set, card.number)} · {card.rarity}
             </p>
             <div className="flex flex-wrap gap-2 mt-3">
               <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded text-xs">
@@ -93,7 +95,7 @@ export function CardDetail({ row, onClose, onEdit, onDelete }: CardDetailProps) 
 
         {/* Price History */}
         <div className="p-6">
-          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Price History</h3>
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">{t('detail.priceHistory')}</h3>
           <div className="space-y-2">
             {priceHistory.map((p) => (
               <div
@@ -139,13 +141,13 @@ export function CardDetail({ row, onClose, onEdit, onDelete }: CardDetailProps) 
             onClick={onEdit}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
           >
-            Edit
+            {t('detail.edit')}
           </button>
           <button
             onClick={onDelete}
             className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg text-sm font-medium hover:bg-red-100"
           >
-            Delete
+            {t('detail.delete')}
           </button>
         </div>
       </div>
