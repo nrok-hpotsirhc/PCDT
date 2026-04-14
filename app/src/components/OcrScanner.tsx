@@ -52,20 +52,99 @@ function captureCardCanvas(video: HTMLVideoElement, canvas: HTMLCanvasElement): 
 }
 
 /**
+ * Compute an Otsu threshold for a grayscale histogram.
+ * Returns the threshold value that minimizes intra-class variance.
+ */
+function otsuThreshold(grayValues: number[]): number {
+  const histogram = new Array<number>(256).fill(0);
+  for (const v of grayValues) histogram[v]!++;
+
+  const total = grayValues.length;
+  let sum = 0;
+  for (let i = 0; i < 256; i++) sum += i * histogram[i]!;
+
+  let sumB = 0;
+  let wB = 0;
+  let maxVariance = 0;
+  let bestThreshold = 128;
+
+  for (let t = 0; t < 256; t++) {
+    wB += histogram[t]!;
+    if (wB === 0) continue;
+    const wF = total - wB;
+    if (wF === 0) break;
+
+    sumB += t * histogram[t]!;
+    const meanB = sumB / wB;
+    const meanF = (sum - sumB) / wF;
+    const variance = wB * wF * (meanB - meanF) * (meanB - meanF);
+
+    if (variance > maxVariance) {
+      maxVariance = variance;
+      bestThreshold = t;
+    }
+  }
+  return bestThreshold;
+}
+
+/**
+ * Apply an unsharp-mask sharpening filter to grayscale image data.
+ * Sharpens edges for cleaner OCR input.
+ */
+function sharpenGrayscale(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+): void {
+  // Copy the gray channel (already converted) for convolution
+  const gray = new Float32Array(width * height);
+  for (let i = 0; i < gray.length; i++) gray[i] = data[i * 4]!;
+
+  // 3×3 Laplacian-based sharpen kernel
+  const amount = 0.6;
+  for (let y = 1; y < height - 1; y++) {
+    for (let x = 1; x < width - 1; x++) {
+      const idx = y * width + x;
+      const laplacian =
+        -gray[(y - 1) * width + x]! -
+        gray[y * width + (x - 1)]! +
+        4 * gray[idx]! -
+        gray[y * width + (x + 1)]! -
+        gray[(y + 1) * width + x]!;
+      const sharpened = Math.min(255, Math.max(0, gray[idx]! + amount * laplacian));
+      const pi = idx * 4;
+      data[pi] = data[pi + 1] = data[pi + 2] = sharpened;
+    }
+  }
+}
+
+interface ROIOptions {
+  /** Upscale factor (default 3) */
+  scale?: number;
+  /** If true, the ROI contains light text on dark background and will be inverted */
+  invertForLightOnDark?: boolean;
+}
+
+/**
  * Extract a ROI from a source canvas into a new canvas with heavy
- * preprocessing (grayscale, high contrast, upscale) for OCR accuracy.
+ * preprocessing optimised for OCR accuracy.
+ *
+ * For the **name ROI** (dark text on light background) the default settings
+ * work well.  For the **set ROI** (light text on dark background, very small)
+ * pass `{ scale: 5, invertForLightOnDark: true }` for better results.
  */
 function extractROI(
   src: HTMLCanvasElement,
   roi: { x: number; y: number; w: number; h: number },
+  opts: ROIOptions = {},
 ): HTMLCanvasElement {
+  const { scale = 3, invertForLightOnDark = false } = opts;
+
   const sx = Math.round(roi.x * src.width);
   const sy = Math.round(roi.y * src.height);
   const sw = Math.round(roi.w * src.width);
   const sh = Math.round(roi.h * src.height);
 
-  // Upscale the ROI 3× for better Tesseract accuracy on small text
-  const scale = 3;
   const roiCanvas = document.createElement('canvas');
   roiCanvas.width = sw * scale;
   roiCanvas.height = sh * scale;
@@ -75,18 +154,35 @@ function extractROI(
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(src, sx, sy, sw, sh, 0, 0, roiCanvas.width, roiCanvas.height);
 
-  // Grayscale + strong contrast + binarization for OCR
+  // ── Step 1: Convert to grayscale ──────────────────────────────────────
   const imageData = ctx.getImageData(0, 0, roiCanvas.width, roiCanvas.height);
   const d = imageData.data;
+
   for (let i = 0; i + 3 < d.length; i += 4) {
-    const gray = 0.299 * d[i]! + 0.587 * d[i + 1]! + 0.114 * d[i + 2]!;
-    // Strong contrast: stretch around midpoint then threshold at 140
-    const contrast = Math.min(255, Math.max(0, (gray - 128) * 2.0 + 128));
-    const bin = contrast > 140 ? 255 : 0;
+    const gray = Math.round(0.299 * d[i]! + 0.587 * d[i + 1]! + 0.114 * d[i + 2]!);
+    d[i] = d[i + 1] = d[i + 2] = gray;
+  }
+
+  // ── Step 2: Sharpen edges so small characters become crisper ──────────
+  sharpenGrayscale(d, roiCanvas.width, roiCanvas.height);
+
+  // Collect sharpened gray values for adaptive threshold computation
+  const grayValues: number[] = [];
+  for (let i = 0; i + 3 < d.length; i += 4) {
+    grayValues.push(d[i]!);
+  }
+
+  // ── Step 3: Adaptive Otsu binarization ────────────────────────────────
+  const threshold = otsuThreshold(grayValues);
+
+  for (let i = 0; i + 3 < d.length; i += 4) {
+    let bin = d[i]! > threshold ? 255 : 0;
+    // For light-on-dark ROIs, invert so Tesseract sees dark text on white bg
+    if (invertForLightOnDark) bin = bin === 255 ? 0 : 255;
     d[i] = d[i + 1] = d[i + 2] = bin;
   }
-  ctx.putImageData(imageData, 0, 0);
 
+  ctx.putImageData(imageData, 0, 0);
   return roiCanvas;
 }
 
@@ -148,18 +244,40 @@ function parseNameFromROI(raw: string): string | null {
 /**
  * Parse the set info ROI to extract set code and card number.
  * Returns { setCode, cardNumber } or null fields if not found.
+ *
+ * Handles common OCR misreadings: O↔0, l/I↔1, S↔5, B↔8 in the
+ * numeric portion, and normalises whitespace and slash variants.
  */
 function parseSetInfo(raw: string): { setCode: string | null; cardNumber: string | null } {
-  const text = raw.replace(/\n/g, ' ').trim();
+  // Normalise OCR artefacts: replace common slash look-alikes and collapse whitespace
+  let text = raw.replace(/\n/g, ' ').trim();
+  // Some OCR engines return backslash or pipe instead of forward slash
+  text = text.replace(/[\\|]/g, '/');
 
   // Try to find card number like "072/091"
-  const numMatch = CARD_NUMBER_RE.exec(text);
+  let numMatch = CARD_NUMBER_RE.exec(text);
+
+  // If no match, try fixing OCR digit/letter confusion in the numeric parts.
+  // Common confusions: O/o/Q → 0, l/I/i/| → 1, S/s → 5, B/b → 8
+  if (!numMatch) {
+    const DIGIT_LIKE = /[O0oQlIi|1-9SsBb]{1,4}/;
+    const corrected = text
+      .replace(new RegExp(`([A-Z]{2,6}\\s*)(${DIGIT_LIKE.source})\\s*/\\s*(${DIGIT_LIKE.source})`, 'gi'),
+        (_m, prefix: string, a: string, b: string) => {
+          const fixDigits = (s: string) =>
+            s.replace(/[OoQ]/g, '0').replace(/[lIi|]/g, '1').replace(/[Ss]/g, '5').replace(/[Bb]/g, '8');
+          return `${prefix}${fixDigits(a)}/${fixDigits(b)}`;
+        });
+    numMatch = CARD_NUMBER_RE.exec(corrected);
+    if (numMatch) text = corrected;
+  }
+
   const cardNumber = numMatch ? numMatch[1]!.replace(/^0+/, '') || '0' : null;
 
   // Try to find a set code (2-6 uppercase letters)
   // Remove the number portion first to avoid false matches
   const textWithoutNum = numMatch ? text.replace(numMatch[0], '') : text;
-  const codeMatch = SET_CODE_RE.exec(textWithoutNum);
+  const codeMatch = SET_CODE_RE.exec(textWithoutNum.toUpperCase());
   const setCode = codeMatch && !FALSE_POSITIVE_SET_CODES.has(codeMatch[1]!) ? codeMatch[1]! : null;
 
   return { setCode, cardNumber };
@@ -213,11 +331,16 @@ export function OcrScanner({ onCardDetected }: OcrScannerProps) {
     setStatus('processing');
 
     try {
-      const { createWorker } = await import('tesseract.js');
+      const { createWorker, PSM } = await import('tesseract.js');
 
       // Extract the two ROIs from the captured card image
-      const nameCanvas = extractROI(canvasRef.current, NAME_ROI);
-      const setCanvas  = extractROI(canvasRef.current, SET_ROI);
+      // Name ROI: large dark text on light background – default preprocessing
+      const nameCanvas = extractROI(canvasRef.current, NAME_ROI, { scale: 3 });
+      // Set ROI: small light text on dark background – higher upscale + inversion
+      const setCanvas  = extractROI(canvasRef.current, SET_ROI, {
+        scale: 5,
+        invertForLightOnDark: true,
+      });
 
       const [nameBlob, setBlob] = await Promise.all([
         canvasToBlob(nameCanvas),
@@ -227,6 +350,14 @@ export function OcrScanner({ onCardDetected }: OcrScannerProps) {
       // OCR both ROIs – use 'deu+eng' for German card name support
       const nameWorker = await createWorker('deu+eng');
       const setWorker  = await createWorker('eng');
+
+      // Optimise Tesseract parameters for each ROI
+      await setWorker.setParameters({
+        // Treat as a single text line – the set info is one line (e.g. "PAL 041/196")
+        tessedit_pageseg_mode: PSM.SINGLE_LINE,
+        // Whitelist only characters that can appear in set codes + card numbers
+        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/ ',
+      });
 
       const [nameResult, setResult] = await Promise.all([
         nameWorker.recognize(nameBlob),
