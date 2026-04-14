@@ -126,13 +126,14 @@ function extractROI(
   const imageData = ctx.getImageData(0, 0, roiCanvas.width, roiCanvas.height);
   const d = imageData.data;
 
-  const grayValues: number[] = [];
+  const pixelCount = d.length / 4;
+  const grayValues = new Array<number>(pixelCount);
   let graySum = 0;
 
   for (let i = 0; i + 3 < d.length; i += 4) {
     const gray = Math.round(0.299 * d[i]! + 0.587 * d[i + 1]! + 0.114 * d[i + 2]!);
     d[i] = d[i + 1] = d[i + 2] = gray;
-    grayValues.push(gray);
+    grayValues[i / 4] = gray;
     graySum += gray;
   }
 
@@ -141,7 +142,7 @@ function extractROI(
 
   // Auto-detect inversion: if the ROI is predominantly dark (mean < 128),
   // the text is likely light-on-dark and we must invert for Tesseract.
-  const meanGray = graySum / grayValues.length;
+  const meanGray = graySum / pixelCount;
   const needsInvert = meanGray < 128;
 
   for (let i = 0; i + 3 < d.length; i += 4) {
