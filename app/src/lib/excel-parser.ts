@@ -25,6 +25,10 @@ export interface ImportResult {
   errors: { row: number; message: string }[];
 }
 
+function createExportFilename(): string {
+  return `pokemon-collection-${new Date().toISOString().slice(0, 10)}.xlsx`;
+}
+
 const VALID_VARIANTS: CardVariant[] = [
   'holofoil', 'reverseHolofoil', 'normal', '1stEditionHolofoil', '1stEditionNormal',
 ];
@@ -100,7 +104,7 @@ export function parseExcelFile(buffer: ArrayBuffer): ImportResult {
 export function exportToExcel(
   userCards: UserCard[],
   cards: Card[] = [],
-  filename = `pokemon-collection-${new Date().toISOString().slice(0, 10)}.xlsx`,
+  filename = createExportFilename(),
 ): void {
   const cardMap = new Map(cards.map((card) => [card.id, card]));
   const data = userCards.map((uc) => {
@@ -109,7 +113,7 @@ export function exportToExcel(
     return {
       cardId: uc.cardId,
       name: card?.name ?? '',
-      setCode: card?.set.ptcgoCode ?? card?.set.id.toUpperCase() ?? '',
+      setCode: card?.set.ptcgoCode ?? card?.set.id?.toUpperCase() ?? '',
       setName: card?.set.name ?? '',
       number: card?.number ?? '',
       rarity: card?.rarity ?? '',
