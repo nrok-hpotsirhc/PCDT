@@ -87,58 +87,25 @@ function otsuThreshold(grayValues: number[]): number {
   return bestThreshold;
 }
 
-/**
- * Apply an unsharp-mask sharpening filter to grayscale image data.
- * Sharpens edges for cleaner OCR input.
- */
-function sharpenGrayscale(
-  data: Uint8ClampedArray,
-  width: number,
-  height: number,
-): void {
-  // Copy the gray channel (already converted) for convolution
-  const gray = new Float32Array(width * height);
-  for (let i = 0; i < gray.length; i++) gray[i] = data[i * 4]!;
-
-  // 3×3 Laplacian-based sharpen kernel
-  const amount = 0.6;
-  for (let y = 1; y < height - 1; y++) {
-    for (let x = 1; x < width - 1; x++) {
-      const idx = y * width + x;
-      const laplacian =
-        -gray[(y - 1) * width + x]! -
-        gray[y * width + (x - 1)]! +
-        4 * gray[idx]! -
-        gray[y * width + (x + 1)]! -
-        gray[(y + 1) * width + x]!;
-      const sharpened = Math.min(255, Math.max(0, gray[idx]! + amount * laplacian));
-      const pi = idx * 4;
-      data[pi] = data[pi + 1] = data[pi + 2] = sharpened;
-    }
-  }
-}
-
 interface ROIOptions {
   /** Upscale factor (default 3) */
   scale?: number;
-  /** If true, the ROI contains light text on dark background and will be inverted */
-  invertForLightOnDark?: boolean;
 }
 
 /**
  * Extract a ROI from a source canvas into a new canvas with heavy
  * preprocessing optimised for OCR accuracy.
  *
- * For the **name ROI** (dark text on light background) the default settings
- * work well.  For the **set ROI** (light text on dark background, very small)
- * pass `{ scale: 5, invertForLightOnDark: true }` for better results.
+ * Pipeline: bilinear upscale → grayscale → adaptive Otsu binarization.
+ * If the ROI is predominantly dark (mean gray < 128) the result is
+ * automatically inverted so Tesseract always sees dark text on white bg.
  */
 function extractROI(
   src: HTMLCanvasElement,
   roi: { x: number; y: number; w: number; h: number },
   opts: ROIOptions = {},
 ): HTMLCanvasElement {
-  const { scale = 3, invertForLightOnDark = false } = opts;
+  const { scale = 3 } = opts;
 
   const sx = Math.round(roi.x * src.width);
   const sy = Math.round(roi.y * src.height);
@@ -150,35 +117,37 @@ function extractROI(
   roiCanvas.height = sh * scale;
   const ctx = roiCanvas.getContext('2d')!;
 
-  // Disable image smoothing for sharper upscale
-  ctx.imageSmoothingEnabled = false;
+  // Use bilinear smoothing for natural-looking upscaled text
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(src, sx, sy, sw, sh, 0, 0, roiCanvas.width, roiCanvas.height);
 
   // ── Step 1: Convert to grayscale ──────────────────────────────────────
   const imageData = ctx.getImageData(0, 0, roiCanvas.width, roiCanvas.height);
   const d = imageData.data;
 
+  const pixelCount = d.length / 4;
+  const grayValues = new Array<number>(pixelCount);
+  let graySum = 0;
+
   for (let i = 0; i + 3 < d.length; i += 4) {
     const gray = Math.round(0.299 * d[i]! + 0.587 * d[i + 1]! + 0.114 * d[i + 2]!);
     d[i] = d[i + 1] = d[i + 2] = gray;
+    grayValues[i / 4] = gray;
+    graySum += gray;
   }
 
-  // ── Step 2: Sharpen edges so small characters become crisper ──────────
-  sharpenGrayscale(d, roiCanvas.width, roiCanvas.height);
-
-  // Collect sharpened gray values for adaptive threshold computation
-  const grayValues: number[] = [];
-  for (let i = 0; i + 3 < d.length; i += 4) {
-    grayValues.push(d[i]!);
-  }
-
-  // ── Step 3: Adaptive Otsu binarization ────────────────────────────────
+  // ── Step 2: Adaptive Otsu binarization ────────────────────────────────
   const threshold = otsuThreshold(grayValues);
+
+  // Auto-detect inversion: if the ROI is predominantly dark (mean < 128),
+  // the text is likely light-on-dark and we must invert for Tesseract.
+  const meanGray = graySum / pixelCount;
+  const needsInvert = meanGray < 128;
 
   for (let i = 0; i + 3 < d.length; i += 4) {
     let bin = d[i]! > threshold ? 255 : 0;
-    // For light-on-dark ROIs, invert so Tesseract sees dark text on white bg
-    if (invertForLightOnDark) bin = bin === 255 ? 0 : 255;
+    if (needsInvert) bin = bin === 255 ? 0 : 255;
     d[i] = d[i + 1] = d[i + 2] = bin;
   }
 
@@ -334,13 +303,10 @@ export function OcrScanner({ onCardDetected }: OcrScannerProps) {
       const { createWorker, PSM } = await import('tesseract.js');
 
       // Extract the two ROIs from the captured card image
-      // Name ROI: large dark text on light background – default preprocessing
+      // Name ROI: large text on card header – default 3× upscale
       const nameCanvas = extractROI(canvasRef.current, NAME_ROI, { scale: 3 });
-      // Set ROI: small light text on dark background – higher upscale + inversion
-      const setCanvas  = extractROI(canvasRef.current, SET_ROI, {
-        scale: 5,
-        invertForLightOnDark: true,
-      });
+      // Set ROI: small text at card bottom – higher 5× upscale for tiny characters
+      const setCanvas  = extractROI(canvasRef.current, SET_ROI, { scale: 5 });
 
       const [nameBlob, setBlob] = await Promise.all([
         canvasToBlob(nameCanvas),
