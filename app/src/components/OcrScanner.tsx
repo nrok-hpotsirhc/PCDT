@@ -217,7 +217,9 @@ function extractNameCandidatesFromROI(raw: string): string[] {
       .map((word) => word.replace(/^[^0-9A-Za-zÀ-ÿ]+|[^0-9A-Za-zÀ-ÿ'.-]+$/g, ''))
       .filter((word) => word.length > 0);
 
-    while (words.length > 0 && NON_NAME_PREFIXES.has(normalizeNameLookup(words[0]!))) {
+    while (words.length > 0) {
+      const firstWord = words[0];
+      if (!firstWord || !NON_NAME_PREFIXES.has(normalizeNameLookup(firstWord))) break;
       words.shift();
     }
 
