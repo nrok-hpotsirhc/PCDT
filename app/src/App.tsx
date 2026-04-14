@@ -11,15 +11,13 @@ import type { UserCard, Card, PortfolioRow } from '@/lib/types';
 
 type Tab = 'dashboard' | 'portfolio' | 'add' | 'import' | 'scan';
 
-const ExcelImport = lazy(async () => {
-  const mod = await import('@/components/ExcelImport');
-  return { default: mod.ExcelImport };
-});
+const ExcelImport = lazy(() =>
+  import('@/components/ExcelImport').then((mod) => ({ default: mod.ExcelImport })),
+);
 
-const OcrScanner = lazy(async () => {
-  const mod = await import('@/components/OcrScanner');
-  return { default: mod.OcrScanner };
-});
+const OcrScanner = lazy(() =>
+  import('@/components/OcrScanner').then((mod) => ({ default: mod.OcrScanner })),
+);
 
 export function App() {
   const { rows, cards, userCards, loading, error, lastSynced, setUserCards } = usePortfolioData();
