@@ -49,7 +49,7 @@ git clone https://github.com/<YOUR_USERNAME>/<YOUR_REPO_NAME>.git
 cd <YOUR_REPO_NAME>
 
 # Option B: Clone directly and push to your own repo
-git clone https://github.com/nrok-hpotsirhc/32_PokemonDB.git my-pokemon-tracker
+git clone https://github.com/nrok-hpotsirhc/PCDT.git my-pokemon-tracker
 cd my-pokemon-tracker
 git remote set-url origin https://github.com/<YOUR_USERNAME>/<YOUR_REPO_NAME>.git
 git push -u origin main
@@ -57,12 +57,12 @@ git push -u origin main
 
 ### 2. Update the base path
 
-Open `app/vite.config.ts` and change the `base` value to match your repository name:
+`app/vite.config.ts` already uses a relative base so the build keeps working even if you rename the repository:
 
 ```ts
 export default defineConfig({
   // ...
-  base: '/<YOUR_REPO_NAME>/',   // e.g. '/my-pokemon-tracker/'
+  base: './',
 });
 ```
 
@@ -167,30 +167,22 @@ npm -v    # should print 10.x.x
 
 ```bash
 cd ~
-git clone https://github.com/nrok-hpotsirhc/32_PokemonDB.git
-cd 32_PokemonDB
+git clone https://github.com/nrok-hpotsirhc/PCDT.git
+cd PCDT
 ```
 
 > If you have your own fork, replace the URL with your fork's URL.
 
-### Step 3 — Change the base path
+### Step 3 — Verify the base path
 
-Since the app won't be in a subfolder, change the `base` to `'/'`:
+The default config already uses a relative base, so you can leave it as-is:
 
 ```bash
 nano app/vite.config.ts
 ```
 
-Change this line:
-
 ```ts
-  base: '/32_PokemonDB/',
-```
-
-to:
-
-```ts
-  base: '/',
+  base: './',
 ```
 
 Save with `Ctrl+O`, `Enter`, then exit with `Ctrl+X`.
@@ -224,7 +216,7 @@ server {
     listen 80;
     server_name _;
 
-    root /home/pi/32_PokemonDB/app/dist;
+    root /home/pi/PCDT/app/dist;
     index index.html;
 
     location / {
@@ -274,7 +266,7 @@ Nginx starts automatically on boot by default. Your app is a static site — no 
 ### Updating the app later
 
 ```bash
-cd ~/32_PokemonDB
+cd ~/PCDT
 git pull
 cd app
 npm install
