@@ -5,11 +5,88 @@ import { searchCardsApi } from '@/lib/pokemon-api';
 import { useI18n } from '@/lib/i18n';
 
 interface OcrScannerProps {
+  /** Kept for API compatibility – not used directly in scan logic. */
   cards: Card[];
   onCardDetected: (card: Card) => void;
 }
 
-export function OcrScanner({ cards, onCardDetected }: OcrScannerProps) {
+/** Pokemon card aspect ratio: 63mm × 88mm ≈ 5:7 */
+const CARD_RATIO = 5 / 7;
+
+/**
+ * Crop the center of the video frame to the Pokemon card portrait aspect ratio
+ * and apply grayscale + contrast enhancement for better OCR results.
+ */
+function captureCardCanvas(video: HTMLVideoElement, canvas: HTMLCanvasElement): boolean {
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
+  if (!vw || !vh) return false;
+
+  // Crop to portrait 5:7 centered area
+  let cropW: number, cropH: number, cropX: number, cropY: number;
+  if (vw / vh > CARD_RATIO) {
+    cropH = vh;
+    cropW = Math.round(vh * CARD_RATIO);
+    cropX = Math.round((vw - cropW) / 2);
+    cropY = 0;
+  } else {
+    cropW = vw;
+    cropH = Math.round(vw / CARD_RATIO);
+    cropX = 0;
+    cropY = Math.round((vh - cropH) / 2);
+  }
+
+  canvas.width = cropW;
+  canvas.height = cropH;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return false;
+
+  // Draw cropped frame
+  ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+  // Grayscale + contrast boost for better OCR
+  const imageData = ctx.getImageData(0, 0, cropW, cropH);
+  const d = imageData.data;
+  for (let i = 0; i + 3 < d.length; i += 4) {
+    const gray = 0.299 * d[i]! + 0.587 * d[i + 1]! + 0.114 * d[i + 2]!;
+    const enhanced = Math.min(255, Math.max(0, (gray - 128) * 1.5 + 128));
+    d[i] = d[i + 1] = d[i + 2] = enhanced;
+  }
+  ctx.putImageData(imageData, 0, 0);
+
+  return true;
+}
+
+/**
+ * Extract the most likely card name candidates from raw OCR text.
+ * Pokemon cards have the name as the first prominent non-noise text.
+ */
+function extractCandidates(text: string): string[] {
+  const lines = text
+    .split('\n')
+    .map((l) => l.trim())
+    // Remove lines that are clearly not card names
+    .filter((l) => {
+      if (l.length < 3) return false;
+      if (/^\d+$/.test(l)) return false;                      // pure numbers
+      if (/^\d+\/\d+/.test(l)) return false;                  // card number "072/091"
+      if (/\bHP\b/i.test(l) && /\d{2,3}/.test(l)) return false; // "120 HP"
+      if (/©|™|®|illus\./i.test(l)) return false;             // copyright
+      if (l.length > 40) return false;                         // too long
+      return true;
+    });
+
+  // Deduplicate while preserving order
+  const seen = new Set<string>();
+  return lines.filter((l) => {
+    const key = l.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 6);
+}
+
+export function OcrScanner({ onCardDetected }: OcrScannerProps) {
   const [status, setStatus] = useState<'idle' | 'camera' | 'processing' | 'result'>('idle');
   const [ocrText, setOcrText] = useState('');
   const [matchedCards, setMatchedCards] = useState<Card[]>([]);
@@ -23,7 +100,13 @@ export function OcrScanner({ cards, onCardDetected }: OcrScannerProps) {
     setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        // Request portrait dimensions matching Pokemon card aspect ratio
+        video: {
+          facingMode: 'environment',
+          width: { ideal: 720 },
+          height: { ideal: 1280 },
+          aspectRatio: { ideal: CARD_RATIO },
+        },
       });
       streamRef.current = stream;
       if (videoRef.current) {
@@ -38,7 +121,7 @@ export function OcrScanner({ cards, onCardDetected }: OcrScannerProps) {
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current.getTracks().forEach((track: MediaStreamTrack) => track.stop());
       streamRef.current = null;
     }
   }, []);
@@ -46,14 +129,8 @@ export function OcrScanner({ cards, onCardDetected }: OcrScannerProps) {
   const captureAndScan = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current) return;
 
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.drawImage(video, 0, 0);
+    const ok = captureCardCanvas(videoRef.current, canvasRef.current);
+    if (!ok) return;
     stopCamera();
     setStatus('processing');
 
@@ -61,7 +138,7 @@ export function OcrScanner({ cards, onCardDetected }: OcrScannerProps) {
       const { createWorker } = await import('tesseract.js');
       const worker = await createWorker('eng');
       const blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob(resolve, 'image/png'),
+        canvasRef.current!.toBlob(resolve, 'image/png'),
       );
       if (!blob) throw new Error('Failed to capture image');
 
@@ -71,17 +148,17 @@ export function OcrScanner({ cards, onCardDetected }: OcrScannerProps) {
       const text = data.text.trim();
       setOcrText(text);
 
-      // Try to match against pokemontcg.io API
-      const lines = text.split('\n').filter((l) => l.trim().length > 2);
+      // Extract smart candidate lines and search each one
+      const candidates = extractCandidates(text);
       const allMatches: Card[] = [];
-      for (const line of lines.slice(0, 3)) {
+      for (const line of candidates) {
         try {
-          const result = await searchCardsApi(line.trim(), 3);
+          const result = await searchCardsApi(line, 5);
           allMatches.push(...result.cards);
         } catch { /* skip failed searches */ }
       }
 
-      // Deduplicate
+      // Deduplicate by card id
       const uniqueIds = new Set<string>();
       const unique = allMatches.filter((c) => {
         if (uniqueIds.has(c.id)) return false;
@@ -95,7 +172,7 @@ export function OcrScanner({ cards, onCardDetected }: OcrScannerProps) {
       setError(err instanceof Error ? err.message : 'OCR failed');
       setStatus('idle');
     }
-  }, [cards, stopCamera]);
+  }, [stopCamera]);
 
   const reset = useCallback(() => {
     stopCamera();
@@ -107,8 +184,8 @@ export function OcrScanner({ cards, onCardDetected }: OcrScannerProps) {
 
   return (
     <div className="space-y-4">
-      {/* Camera view */}
-      <div className="relative bg-black rounded-lg overflow-hidden aspect-video">
+      {/* Camera view – portrait 5:7 to match Pokemon card ratio */}
+      <div className="relative bg-black rounded-lg overflow-hidden mx-auto aspect-[5/7] max-w-xs">
         <video
           ref={videoRef}
           className={`w-full h-full object-cover ${status !== 'camera' ? 'hidden' : ''}`}
@@ -133,8 +210,8 @@ export function OcrScanner({ cards, onCardDetected }: OcrScannerProps) {
 
         {status === 'camera' && (
           <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute inset-8 border-2 border-white/50 rounded-lg" />
-            <p className="absolute bottom-4 left-0 right-0 text-center text-white text-xs opacity-70">
+            <div className="absolute inset-4 border-2 border-white/60 rounded-lg" />
+            <p className="absolute bottom-3 left-0 right-0 text-center text-white text-xs opacity-70">
               {t('scan.position')}
             </p>
           </div>
@@ -198,7 +275,7 @@ export function OcrScanner({ cards, onCardDetected }: OcrScannerProps) {
                 {t('scan.matches')}
               </p>
               <div className="space-y-2">
-                {matchedCards.map((card) => (
+                {matchedCards.map((card: Card) => (
                   <button
                     key={card.id}
                     onClick={() => onCardDetected(card)}
