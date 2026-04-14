@@ -464,7 +464,7 @@ export function OcrScanner({ onCardDetected }: OcrScannerProps) {
               {totalCount > MAX_VISIBLE_MATCHES && (
                 <button
                   type="button"
-                  onClick={() => void handleShowAll()}
+                  onClick={handleShowAll}
                   className="mt-2 w-full px-3 py-2 text-center text-xs text-blue-600 dark:text-blue-400 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 hover:bg-blue-50 dark:hover:bg-blue-950 font-medium"
                 >
                   +{totalCount - MAX_VISIBLE_MATCHES} {t('form.moreResults')}
