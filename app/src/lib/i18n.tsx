@@ -139,11 +139,14 @@ const translations = {
     'table.avg30': '\u00d8 30d',
 
     // Import
-    'import.title': 'Aus Excel/CSV importieren',
+    'import.title': 'Import / Export',
     'import.drop': 'Excel/CSV-Datei hierhin ziehen oder',
     'import.browse': 'durchsuchen',
     'import.formats': 'Unterstützt .xlsx, .xls, .csv',
     'import.template': '⬇ Import-Vorlage herunterladen',
+    'import.export': '⬇ Sammlung exportieren',
+    'import.exportHint': 'Exportiert deine Sammlung als Excel-Datei mit Karten- und Portfoliodaten.',
+    'import.exportEmpty': 'Zum Export sind noch keine Karten in der Sammlung vorhanden.',
     'import.success': 'Karte(n) erfolgreich importiert',
     'import.errors': 'Fehler beim Import:',
 
@@ -275,11 +278,14 @@ const translations = {
     'table.avg7': '\u00d8 7d',
     'table.avg30': '\u00d8 30d',
 
-    'import.title': 'Import from Excel/CSV',
+    'import.title': 'Import / Export',
     'import.drop': 'Drag & drop an Excel/CSV file here, or',
     'import.browse': 'browse',
     'import.formats': 'Supports .xlsx, .xls, .csv',
     'import.template': '⬇ Download import template',
+    'import.export': '⬇ Export collection',
+    'import.exportHint': 'Exports your collection as an Excel file with card and portfolio data.',
+    'import.exportEmpty': 'There are no cards in the collection to export yet.',
     'import.success': 'card(s) successfully imported',
     'import.errors': 'error(s) during import:',
 

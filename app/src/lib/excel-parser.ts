@@ -1,5 +1,6 @@
 import { read, utils, writeFile } from 'xlsx';
-import type { UserCard, Condition, CardVariant } from './types';
+import type { UserCard, Condition, CardVariant, Card } from './types';
+import { getCardmarketPrice } from './types';
 import { generateId } from './card-store';
 
 interface ImportRow {
@@ -22,6 +23,17 @@ interface ImportRow {
 export interface ImportResult {
   success: UserCard[];
   errors: { row: number; message: string }[];
+}
+
+const CARDMARKET_CURRENCY = 'EUR';
+
+function createExportFilename(): string {
+  const isoDate = new Date().toISOString().split('T')[0];
+  return `pokemon-collection-${isoDate}.xlsx`;
+}
+
+function getSetCode(card?: Card): string {
+  return card?.set.ptcgoCode ?? card?.set.id?.toUpperCase() ?? '';
 }
 
 const VALID_VARIANTS: CardVariant[] = [
@@ -96,20 +108,40 @@ export function parseExcelFile(buffer: ArrayBuffer): ImportResult {
   return { success, errors };
 }
 
-export function exportToExcel(userCards: UserCard[], filename = 'pokemon-collection.xlsx'): void {
-  const data = userCards.map((uc) => ({
-    cardId: uc.cardId,
-    owner: uc.owner,
-    condition: uc.condition,
-    variant: uc.variant,
-    quantity: uc.quantity,
-    purchasePrice: uc.purchasePrice ?? '',
-    purchaseCurrency: uc.purchaseCurrency ?? '',
-    purchaseDate: uc.purchaseDate ?? '',
-    gradingService: uc.grade?.service ?? '',
-    gradingScore: uc.grade?.score ?? '',
-    notes: uc.notes ?? '',
-  }));
+export function exportToExcel(
+  userCards: UserCard[],
+  cards: Card[] = [],
+  filename = createExportFilename(),
+): void {
+  const cardMap = new Map(cards.map((card) => [card.id, card]));
+  const data = userCards.map((uc) => {
+    const card = cardMap.get(uc.cardId);
+    const currentPrice = card ? getCardmarketPrice(card, uc.variant) : null;
+
+    return {
+      cardId: uc.cardId,
+      name: card?.name ?? '',
+      setCode: getSetCode(card),
+      setName: card?.set.name ?? '',
+      number: card?.number ?? '',
+      rarity: card?.rarity ?? '',
+      owner: uc.owner,
+      condition: uc.condition,
+      variant: uc.variant,
+      quantity: uc.quantity,
+      currentPrice: currentPrice ?? '',
+      currentPriceCurrency: currentPrice != null ? CARDMARKET_CURRENCY : '',
+      purchasePrice: uc.purchasePrice ?? '',
+      purchaseCurrency: uc.purchaseCurrency ?? '',
+      purchaseDate: uc.purchaseDate ?? '',
+      gradingService: uc.grade?.service ?? '',
+      gradingScore: uc.grade?.score ?? '',
+      notes: uc.notes ?? '',
+      addedAt: uc.addedAt,
+      sourceUrl: card?.cardmarket?.url ?? card?.tcgplayer?.url ?? '',
+      imageUrl: card?.images.large ?? '',
+    };
+  });
 
   const ws = utils.json_to_sheet(data);
   const wb = utils.book_new();

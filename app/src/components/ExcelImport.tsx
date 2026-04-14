@@ -1,13 +1,15 @@
 import { useState, useCallback } from 'react';
-import { parseExcelFile, downloadTemplate } from '@/lib/excel-parser';
+import { parseExcelFile, downloadTemplate, exportToExcel } from '@/lib/excel-parser';
 import { useI18n } from '@/lib/i18n';
-import type { UserCard } from '@/lib/types';
+import type { UserCard, Card } from '@/lib/types';
 
 interface ExcelImportProps {
   onImport: (cards: UserCard[]) => void;
+  userCards: UserCard[];
+  cards: Card[];
 }
 
-export function ExcelImport({ onImport }: ExcelImportProps) {
+export function ExcelImport({ onImport, userCards, cards }: ExcelImportProps) {
   const [dragActive, setDragActive] = useState(false);
   const [errors, setErrors] = useState<{ row: number; message: string }[]>([]);
   const [imported, setImported] = useState(0);
@@ -45,6 +47,10 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
     if (file) void handleFile(file);
   }
 
+  function handleExport() {
+    exportToExcel(userCards, cards);
+  }
+
   return (
     <div className="space-y-4">
       {/* Drop zone */}
@@ -77,12 +83,26 @@ export function ExcelImport({ onImport }: ExcelImportProps) {
       </div>
 
       {/* Template download */}
-      <button
-        onClick={() => downloadTemplate()}
-        className="text-sm text-blue-600 hover:underline"
-      >
-        {t('import.template')}
-      </button>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <button
+          type="button"
+          onClick={() => downloadTemplate()}
+          className="text-sm text-blue-600 hover:underline text-left"
+        >
+          {t('import.template')}
+        </button>
+        <button
+          type="button"
+          onClick={handleExport}
+          disabled={userCards.length === 0}
+          className="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-gray-300"
+        >
+          {t('import.export')}
+        </button>
+      </div>
+      <p className="text-xs text-gray-400">
+        {userCards.length > 0 ? t('import.exportHint') : t('import.exportEmpty')}
+      </p>
 
       {/* Import result */}
       {imported > 0 && (

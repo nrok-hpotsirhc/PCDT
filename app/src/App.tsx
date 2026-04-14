@@ -194,7 +194,7 @@ export function App() {
             {tab === 'import' && (
               <div className="max-w-xl mx-auto">
                 <h2 className="text-lg font-semibold mb-4">{t('import.title')}</h2>
-                <ExcelImport onImport={handleImport} />
+                <ExcelImport onImport={handleImport} userCards={userCards} cards={cards} />
               </div>
             )}
 
