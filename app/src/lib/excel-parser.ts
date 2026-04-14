@@ -25,8 +25,11 @@ export interface ImportResult {
   errors: { row: number; message: string }[];
 }
 
+const CARDMARKET_CURRENCY = 'EUR';
+
 function createExportFilename(): string {
-  return `pokemon-collection-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  const isoDate = new Date().toISOString().split('T')[0];
+  return `pokemon-collection-${isoDate}.xlsx`;
 }
 
 function getSetCode(card?: Card): string {
@@ -127,7 +130,7 @@ export function exportToExcel(
       variant: uc.variant,
       quantity: uc.quantity,
       currentPrice: currentPrice ?? '',
-      currentPriceCurrency: currentPrice != null ? 'EUR' : '',
+      currentPriceCurrency: currentPrice != null ? CARDMARKET_CURRENCY : '',
       purchasePrice: uc.purchasePrice ?? '',
       purchaseCurrency: uc.purchaseCurrency ?? '',
       purchaseDate: uc.purchaseDate ?? '',
