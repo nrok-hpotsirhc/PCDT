@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState, useCallback, useMemo } from 'react';
+import { Suspense, lazy, useId, useState, useCallback, useMemo } from 'react';
 import { usePortfolioData } from '@/hooks/usePortfolioData';
 import { CardTable } from '@/components/CardTable';
 import { Dashboard } from '@/components/Dashboard';
@@ -258,15 +258,17 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
 }
 
 function SectionLoader({ label }: { label: string }) {
+  const labelId = useId();
+
   return (
     <div
       role="status"
       aria-live="polite"
-      aria-label={label}
+      aria-labelledby={labelId}
       className="flex items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-10 text-sm text-gray-600 shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400"
     >
-      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600" />
-      <span className="ml-3">{label}</span>
+      <div aria-hidden="true" className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600" />
+      <span id={labelId} className="ml-3">{label}</span>
     </div>
   );
 }
