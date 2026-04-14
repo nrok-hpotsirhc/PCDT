@@ -1,6 +1,6 @@
 <div align="center">
 
-# Pokémon Card Portfolio Tracker
+# Pokémon Card Portfolio Tracker (PCDT)
 
 Track your Pokémon card collection's market value with live Cardmarket (EUR) prices.
 
