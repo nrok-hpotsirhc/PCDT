@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import type { Card } from '@/lib/types';
 import { formatSetNumber } from '@/lib/types';
 import { searchCardsApi } from '@/lib/pokemon-api';
+import { translateGermanName } from '@/lib/german-pokemon-names';
 import { useI18n } from '@/lib/i18n';
 
 interface OcrScannerProps {
@@ -13,16 +14,21 @@ interface OcrScannerProps {
 /** Pokemon card aspect ratio: 63mm × 88mm ≈ 5:7 */
 const CARD_RATIO = 5 / 7;
 
+// ── ROI definitions (fractions of card width/height) ────────────────────────
+// Top-left ROI: Pokemon name area
+const NAME_ROI = { x: 0.03, y: 0.02, w: 0.70, h: 0.10 };
+// Bottom-left ROI: set info, card number, total count
+const SET_ROI  = { x: 0.03, y: 0.90, w: 0.50, h: 0.08 };
+
 /**
- * Crop the center of the video frame to the Pokemon card portrait aspect ratio
- * and apply grayscale + contrast enhancement for better OCR results.
+ * Crop the center of the video frame to the Pokemon card portrait aspect ratio.
+ * Returns the full card dimensions so ROIs can be extracted afterwards.
  */
 function captureCardCanvas(video: HTMLVideoElement, canvas: HTMLCanvasElement): boolean {
   const vw = video.videoWidth;
   const vh = video.videoHeight;
   if (!vw || !vh) return false;
 
-  // Crop to portrait 5:7 centered area
   let cropW: number, cropH: number, cropX: number, cropY: number;
   if (vw / vh > CARD_RATIO) {
     cropH = vh;
@@ -41,49 +47,122 @@ function captureCardCanvas(video: HTMLVideoElement, canvas: HTMLCanvasElement): 
   const ctx = canvas.getContext('2d');
   if (!ctx) return false;
 
-  // Draw cropped frame
   ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-
-  // Grayscale + contrast boost for better OCR
-  const imageData = ctx.getImageData(0, 0, cropW, cropH);
-  const d = imageData.data;
-  for (let i = 0; i + 3 < d.length; i += 4) {
-    const gray = 0.299 * d[i]! + 0.587 * d[i + 1]! + 0.114 * d[i + 2]!;
-    const enhanced = Math.min(255, Math.max(0, (gray - 128) * 1.5 + 128));
-    d[i] = d[i + 1] = d[i + 2] = enhanced;
-  }
-  ctx.putImageData(imageData, 0, 0);
-
   return true;
 }
 
 /**
- * Extract the most likely card name candidates from raw OCR text.
- * Pokemon cards have the name as the first prominent non-noise text.
+ * Extract a ROI from a source canvas into a new canvas with heavy
+ * preprocessing (grayscale, high contrast, upscale) for OCR accuracy.
  */
-function extractCandidates(text: string): string[] {
-  const lines = text
+function extractROI(
+  src: HTMLCanvasElement,
+  roi: { x: number; y: number; w: number; h: number },
+): HTMLCanvasElement {
+  const sx = Math.round(roi.x * src.width);
+  const sy = Math.round(roi.y * src.height);
+  const sw = Math.round(roi.w * src.width);
+  const sh = Math.round(roi.h * src.height);
+
+  // Upscale the ROI 3× for better Tesseract accuracy on small text
+  const scale = 3;
+  const roiCanvas = document.createElement('canvas');
+  roiCanvas.width = sw * scale;
+  roiCanvas.height = sh * scale;
+  const ctx = roiCanvas.getContext('2d')!;
+
+  // Disable image smoothing for sharper upscale
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(src, sx, sy, sw, sh, 0, 0, roiCanvas.width, roiCanvas.height);
+
+  // Grayscale + strong contrast + binarization for OCR
+  const imageData = ctx.getImageData(0, 0, roiCanvas.width, roiCanvas.height);
+  const d = imageData.data;
+  for (let i = 0; i + 3 < d.length; i += 4) {
+    const gray = 0.299 * d[i]! + 0.587 * d[i + 1]! + 0.114 * d[i + 2]!;
+    // Strong contrast: stretch around midpoint then threshold at 140
+    const contrast = Math.min(255, Math.max(0, (gray - 128) * 2.0 + 128));
+    const bin = contrast > 140 ? 255 : 0;
+    d[i] = d[i + 1] = d[i + 2] = bin;
+  }
+  ctx.putImageData(imageData, 0, 0);
+
+  return roiCanvas;
+}
+
+/** Convert a canvas to a PNG Blob. */
+function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error('Failed to convert canvas to blob'));
+    }, 'image/png');
+  });
+}
+
+// ── Text parsing helpers ────────────────────────────────────────────────────
+
+/** Card number pattern: "072/091", "32/100", "SV043/SV091" etc. */
+const CARD_NUMBER_RE = /(?:SV)?(\d{1,4})\s*\/\s*(\d{1,4})/i;
+
+/** Set code pattern on card bottom: typically 2-6 uppercase letters */
+const SET_CODE_RE = /\b([A-Z]{2,6})\b/;
+
+/** Common short uppercase tokens that are NOT set codes */
+const FALSE_POSITIVE_SET_CODES = new Set(['HP', 'EX', 'GX', 'LV', 'SP', 'FB', 'VS', 'GL']);
+
+/**
+ * Clean up the OCR text for the Pokemon name ROI.
+ * Returns the best candidate name string.
+ */
+function parseNameFromROI(raw: string): string | null {
+  const lines = raw
     .split('\n')
     .map((l) => l.trim())
-    // Remove lines that are clearly not card names
-    .filter((l) => {
-      if (l.length < 3) return false;
-      if (/^\d+$/.test(l)) return false;                      // pure numbers
-      if (/^\d+\/\d+/.test(l)) return false;                  // card number "072/091"
-      if (/\bHP\b/i.test(l) && /\d{2,3}/.test(l)) return false; // "120 HP"
-      if (/©|™|®|illus\./i.test(l)) return false;             // copyright
-      if (l.length > 40) return false;                         // too long
-      return true;
-    });
+    .filter((l) => l.length >= 2);
 
-  // Deduplicate while preserving order
-  const seen = new Set<string>();
-  return lines.filter((l) => {
-    const key = l.toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  }).slice(0, 6);
+  for (const line of lines) {
+    // Remove noise characters that Tesseract sometimes injects
+    let cleaned = line
+      .replace(/[|_{}[\]<>~`@#$%^&*()+=]/g, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+
+    if (cleaned.length < 2) continue;
+
+    // Skip lines that are clearly HP indicators or numbers
+    if (/^\d+\s*HP$/i.test(cleaned)) continue;
+    if (/^HP\s*\d+$/i.test(cleaned)) continue;
+    if (/^\d+$/.test(cleaned)) continue;
+
+    // The name may include suffixes like "ex", "EX", "GX", "V", "VSTAR" etc.
+    // Remove trailing "Stage 1", "Stage 2", "BASIC" etc. that may leak in
+    cleaned = cleaned.replace(/\b(BASIC|Stage\s*[12]|EVOLUTION)\b/gi, '').trim();
+
+    if (cleaned.length >= 2) return cleaned;
+  }
+
+  return null;
+}
+
+/**
+ * Parse the set info ROI to extract set code and card number.
+ * Returns { setCode, cardNumber } or null fields if not found.
+ */
+function parseSetInfo(raw: string): { setCode: string | null; cardNumber: string | null } {
+  const text = raw.replace(/\n/g, ' ').trim();
+
+  // Try to find card number like "072/091"
+  const numMatch = CARD_NUMBER_RE.exec(text);
+  const cardNumber = numMatch ? numMatch[1]!.replace(/^0+/, '') || '0' : null;
+
+  // Try to find a set code (2-6 uppercase letters)
+  // Remove the number portion first to avoid false matches
+  const textWithoutNum = numMatch ? text.replace(numMatch[0], '') : text;
+  const codeMatch = SET_CODE_RE.exec(textWithoutNum);
+  const setCode = codeMatch && !FALSE_POSITIVE_SET_CODES.has(codeMatch[1]!) ? codeMatch[1]! : null;
+
+  return { setCode, cardNumber };
 }
 
 export function OcrScanner({ onCardDetected }: OcrScannerProps) {
@@ -100,7 +179,6 @@ export function OcrScanner({ onCardDetected }: OcrScannerProps) {
     setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        // Request portrait dimensions matching Pokemon card aspect ratio
         video: {
           facingMode: 'environment',
           width: { ideal: 720 },
@@ -136,26 +214,66 @@ export function OcrScanner({ onCardDetected }: OcrScannerProps) {
 
     try {
       const { createWorker } = await import('tesseract.js');
-      const worker = await createWorker('eng');
-      const blob = await new Promise<Blob | null>((resolve) =>
-        canvasRef.current!.toBlob(resolve, 'image/png'),
-      );
-      if (!blob) throw new Error('Failed to capture image');
 
-      const { data } = await worker.recognize(blob);
-      await worker.terminate();
+      // Extract the two ROIs from the captured card image
+      const nameCanvas = extractROI(canvasRef.current, NAME_ROI);
+      const setCanvas  = extractROI(canvasRef.current, SET_ROI);
 
-      const text = data.text.trim();
-      setOcrText(text);
+      const [nameBlob, setBlob] = await Promise.all([
+        canvasToBlob(nameCanvas),
+        canvasToBlob(setCanvas),
+      ]);
 
-      // Extract smart candidate lines and search each one
-      const candidates = extractCandidates(text);
+      // OCR both ROIs – use 'deu+eng' for German card name support
+      const nameWorker = await createWorker('deu+eng');
+      const setWorker  = await createWorker('eng');
+
+      const [nameResult, setResult] = await Promise.all([
+        nameWorker.recognize(nameBlob),
+        setWorker.recognize(setBlob),
+      ]);
+
+      await Promise.all([nameWorker.terminate(), setWorker.terminate()]);
+
+      const nameRaw = nameResult.data.text.trim();
+      const setRaw  = setResult.data.text.trim();
+
+      // Parse results from each ROI
+      const pokemonName = parseNameFromROI(nameRaw);
+      const { setCode, cardNumber } = parseSetInfo(setRaw);
+
+      // Build a combined OCR debug text
+      const debugText = [
+        `[Name ROI] ${nameRaw}`,
+        `→ Parsed name: ${pokemonName ?? '–'}`,
+        '',
+        `[Set ROI] ${setRaw}`,
+        `→ Set: ${setCode ?? '–'}, #${cardNumber ?? '–'}`,
+      ].join('\n');
+      setOcrText(debugText);
+
+      // ── Search strategy ──
+      // 1. If we have both a set code and card number, search by "SET NUMBER"
+      // 2. Always search by the detected Pokemon name (translated DE→EN)
+      // 3. Combine and deduplicate results, preferring exact set matches
       const allMatches: Card[] = [];
-      for (const line of candidates) {
+
+      // Search by set code + card number (most precise)
+      if (setCode && cardNumber) {
         try {
-          const result = await searchCardsApi(line, 5);
+          const result = await searchCardsApi(`${setCode} ${cardNumber}`, 5);
           allMatches.push(...result.cards);
-        } catch { /* skip failed searches */ }
+        } catch { /* skip */ }
+      }
+
+      // Search by Pokemon name (primary identification)
+      if (pokemonName) {
+        // Translate German name to English for the API search
+        const englishName = translateGermanName(pokemonName) ?? pokemonName;
+        try {
+          const result = await searchCardsApi(englishName, 10);
+          allMatches.push(...result.cards);
+        } catch { /* skip */ }
       }
 
       // Deduplicate by card id
@@ -166,7 +284,20 @@ export function OcrScanner({ onCardDetected }: OcrScannerProps) {
         return true;
       });
 
-      setMatchedCards(unique.slice(0, 5));
+      // If we have a card number, boost cards whose number matches
+      let sorted = unique;
+      if (cardNumber) {
+        const normalizedNum = cardNumber.replace(/^0+/, '') || '0';
+        sorted = [...unique].sort((a, b) => {
+          const aNorm = a.number.replace(/^0+/, '') || '0';
+          const bNorm = b.number.replace(/^0+/, '') || '0';
+          const aMatch = aNorm === normalizedNum ? 1 : 0;
+          const bMatch = bNorm === normalizedNum ? 1 : 0;
+          return bMatch - aMatch;
+        });
+      }
+
+      setMatchedCards(sorted.slice(0, 5));
       setStatus('result');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'OCR failed');
@@ -211,6 +342,24 @@ export function OcrScanner({ onCardDetected }: OcrScannerProps) {
         {status === 'camera' && (
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute inset-4 border-2 border-white/60 rounded-lg" />
+            {/* ROI overlay: name area (top-left) – derived from NAME_ROI */}
+            <div
+              className="absolute border-2 border-yellow-400/80 rounded bg-yellow-400/10"
+              style={{ left: `${NAME_ROI.x * 100}%`, top: `${NAME_ROI.y * 100}%`, width: `${NAME_ROI.w * 100}%`, height: `${NAME_ROI.h * 100}%` }}
+            />
+            <span
+              className="absolute text-yellow-300 text-[9px] font-bold"
+              style={{ left: `${(NAME_ROI.x + 0.01) * 100}%`, top: `${(NAME_ROI.y + 0.01) * 100}%` }}
+            >NAME</span>
+            {/* ROI overlay: set info area (bottom-left) – derived from SET_ROI */}
+            <div
+              className="absolute border-2 border-cyan-400/80 rounded bg-cyan-400/10"
+              style={{ left: `${SET_ROI.x * 100}%`, top: `${SET_ROI.y * 100}%`, width: `${SET_ROI.w * 100}%`, height: `${SET_ROI.h * 100}%` }}
+            />
+            <span
+              className="absolute text-cyan-300 text-[9px] font-bold"
+              style={{ left: `${(SET_ROI.x + 0.01) * 100}%`, top: `${(SET_ROI.y + 0.01) * 100}%` }}
+            >SET #</span>
             <p className="absolute bottom-3 left-0 right-0 text-center text-white text-xs opacity-70">
               {t('scan.position')}
             </p>
