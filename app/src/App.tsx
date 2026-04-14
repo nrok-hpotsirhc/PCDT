@@ -1,17 +1,23 @@
-import { useState, useCallback, useMemo } from 'react';
+import { Suspense, lazy, useId, useState, useCallback, useMemo } from 'react';
 import { usePortfolioData } from '@/hooks/usePortfolioData';
 import { CardTable } from '@/components/CardTable';
 import { Dashboard } from '@/components/Dashboard';
 import { CardForm } from '@/components/CardForm';
 import { CardDetail } from '@/components/CardDetail';
-import { ExcelImport } from '@/components/ExcelImport';
-import { OcrScanner } from '@/components/OcrScanner';
 import { formatCurrency, totalPortfolioValue } from '@/lib/price-utils';
 import { addUserCard, updateUserCard, deleteUserCard } from '@/lib/card-store';
 import { useI18n } from '@/lib/i18n';
 import type { UserCard, Card, PortfolioRow } from '@/lib/types';
 
 type Tab = 'dashboard' | 'portfolio' | 'add' | 'import' | 'scan';
+
+const ExcelImport = lazy(() =>
+  import('@/components/ExcelImport').then((mod) => ({ default: mod.ExcelImport })),
+);
+
+const OcrScanner = lazy(() =>
+  import('@/components/OcrScanner').then((mod) => ({ default: mod.OcrScanner })),
+);
 
 export function App() {
   const { rows, cards, userCards, loading, error, lastSynced, setUserCards } = usePortfolioData();
@@ -194,14 +200,18 @@ export function App() {
             {tab === 'import' && (
               <div className="max-w-xl mx-auto">
                 <h2 className="text-lg font-semibold mb-4">{t('import.title')}</h2>
-                <ExcelImport onImport={handleImport} userCards={userCards} cards={cards} />
+                <Suspense fallback={<SectionLoader label={t('loading')} />}>
+                  <ExcelImport onImport={handleImport} userCards={userCards} cards={cards} />
+                </Suspense>
               </div>
             )}
 
             {tab === 'scan' && (
               <div className="max-w-xl mx-auto">
                 <h2 className="text-lg font-semibold mb-4">{t('scan.title')}</h2>
-                <OcrScanner cards={cards} onCardDetected={handleScanDetected} />
+                <Suspense fallback={<SectionLoader label={t('loading')} />}>
+                  <OcrScanner cards={cards} onCardDetected={handleScanDetected} />
+                </Suspense>
               </div>
             )}
           </>
@@ -243,6 +253,22 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
         </button>{' '}
         {t('empty.orImport')}
       </p>
+    </div>
+  );
+}
+
+function SectionLoader({ label }: { label: string }) {
+  const labelId = useId();
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      aria-labelledby={labelId}
+      className="flex items-center justify-center rounded-lg border border-gray-200 bg-white px-4 py-10 text-sm text-gray-600 shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400"
+    >
+      <div aria-hidden="true" className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600" />
+      <span id={labelId} className="ml-3">{label}</span>
     </div>
   );
 }
