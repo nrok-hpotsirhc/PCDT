@@ -157,8 +157,9 @@ export function CardTable({ rows, onRowClick }: CardTableProps) {
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: (row, _columnId, filterValue: string) => {
-      const search = filterValue.toLowerCase();
-      const translatedSearch = (translateGermanName(filterValue.trim()) ?? filterValue.trim()).toLowerCase();
+      const trimmedFilter = filterValue.trim();
+      const search = trimmedFilter.toLowerCase();
+      const translatedSearch = (translateGermanName(trimmedFilter) ?? trimmedFilter).toLowerCase();
       const r = row.original;
       const cardName = r.card.name.toLowerCase();
       return (
