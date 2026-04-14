@@ -74,7 +74,7 @@ export async function searchCardsApi(
   if (!query.trim()) return { cards: [], totalCount: 0 };
 
   // Translate German Pokémon name to English if applicable
-  const trimmed = (translateGermanName(query.trim()) ?? query).trim();
+  const trimmed = translateGermanName(query.trim()) ?? query.trim();
   let q: string;
 
   // Check if query matches "SET_CODE NUMBER" pattern (e.g. "PAL 072")
