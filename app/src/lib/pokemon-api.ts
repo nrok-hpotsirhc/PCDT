@@ -1,4 +1,5 @@
 import type { Card } from './types';
+import { translateGermanName } from './german-pokemon-names';
 
 const API_BASE = 'https://api.pokemontcg.io/v2';
 const CARD_CACHE_KEY = 'pokemon-tracker-card-cache';
@@ -72,7 +73,8 @@ export async function searchCardsApi(
 ): Promise<SearchResult> {
   if (!query.trim()) return { cards: [], totalCount: 0 };
 
-  const trimmed = query.trim();
+  // Translate German Pokémon name to English if applicable
+  const trimmed = (translateGermanName(query.trim()) ?? query).trim();
   let q: string;
 
   // Check if query matches "SET_CODE NUMBER" pattern (e.g. "PAL 072")
