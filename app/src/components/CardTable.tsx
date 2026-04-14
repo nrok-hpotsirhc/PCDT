@@ -14,6 +14,7 @@ import { formatSetNumber } from '@/lib/types';
 import { formatCurrency } from '@/lib/price-utils';
 import { useI18n } from '@/lib/i18n';
 import { CurrencyBadge } from './CurrencyBadge';
+import { translateGermanName } from '@/lib/german-pokemon-names';
 
 interface CardTableProps {
   rows: PortfolioRow[];
@@ -157,9 +158,12 @@ export function CardTable({ rows, onRowClick }: CardTableProps) {
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: (row, _columnId, filterValue: string) => {
       const search = filterValue.toLowerCase();
+      const translatedSearch = (translateGermanName(filterValue.trim()) ?? filterValue.trim()).toLowerCase();
       const r = row.original;
+      const cardName = r.card.name.toLowerCase();
       return (
-        r.card.name.toLowerCase().includes(search) ||
+        cardName.includes(search) ||
+        cardName.includes(translatedSearch) ||
         r.card.set.name.toLowerCase().includes(search) ||
         r.userCard.owner.toLowerCase().includes(search) ||
         tr('condition', r.userCard.condition).toLowerCase().includes(search) ||
