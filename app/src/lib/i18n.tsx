@@ -65,7 +65,7 @@ const translations = {
     'form.cancel': 'Abbrechen',
     'form.noResults': 'Keine Karten gefunden',
     'form.moreResults': 'weitere Ergebnisse – klicken um alle zu sehen',
-    'form.searchHint': 'Suche nach Name (z.B. "Pikachu") oder Set-Code + Nr. (z.B. "PAL 072")',
+    'form.searchHint': 'Suche nach deutschem oder englischem Namen (z.B. "Glurak", "Pikachu") oder Set-Code + Nr. (z.B. "PAL 072")',
     'form.allResults': 'Alle Ergebnisse',
     'form.close': 'Schließen',
     'form.loadingAll': 'Lade alle Ergebnisse...',
