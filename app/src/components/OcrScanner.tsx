@@ -13,12 +13,13 @@ interface OcrScannerProps {
 
 /** Pokemon card aspect ratio: 63mm × 88mm ≈ 5:7 */
 const CARD_RATIO = 5 / 7;
+const MAX_VISIBLE_MATCHES = 5;
+const MAX_MODAL_MATCHES = 50;
 
 // ── ROI definitions (fractions of card width/height) ────────────────────────
-// Top-left ROI: Pokemon name area (generous margin for camera shake)
-const NAME_ROI = { x: 0.02, y: 0.01, w: 0.85, h: 0.14 };
-// Bottom-left ROI: set info, card number, total count (generous margin for camera shake)
-const SET_ROI  = { x: 0.02, y: 0.86, w: 0.65, h: 0.13 };
+// Top-left ROI: only the actual Pokemon name area, skipping the tiny status text
+// in the upper-left corner ("Basis", "Stage 1", etc.).
+const NAME_ROI = { x: 0.16, y: 0.01, w: 0.68, h: 0.14 };
 
 /**
  * Crop the center of the video frame to the Pokemon card portrait aspect ratio.
@@ -165,17 +166,6 @@ function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   });
 }
 
-// ── Text parsing helpers ────────────────────────────────────────────────────
-
-/** Card number pattern: "072/091", "32/100", "SV043/SV091" etc. */
-const CARD_NUMBER_RE = /(?:SV)?(\d{1,4})\s*\/\s*(\d{1,4})/i;
-
-/** Set code pattern on card bottom: typically 2-6 uppercase letters */
-const SET_CODE_RE = /\b([A-Z]{2,6})\b/;
-
-/** Common short uppercase tokens that are NOT set codes */
-const FALSE_POSITIVE_SET_CODES = new Set(['HP', 'EX', 'GX', 'LV', 'SP', 'FB', 'VS', 'GL']);
-
 /**
  * Clean up the OCR text for the Pokemon name ROI.
  * Returns the best candidate name string.
@@ -185,6 +175,8 @@ function parseNameFromROI(raw: string): string | null {
     .split('\n')
     .map((l) => l.trim())
     .filter((l) => l.length >= 2);
+
+  let bestCandidate: string | null = null;
 
   for (const line of lines) {
     // Remove noise characters that Tesseract sometimes injects
@@ -200,67 +192,42 @@ function parseNameFromROI(raw: string): string | null {
     if (/^HP\s*\d+$/i.test(cleaned)) continue;
     if (/^\d+$/.test(cleaned)) continue;
 
-    // The name may include suffixes like "ex", "EX", "GX", "V", "VSTAR" etc.
-    // Remove trailing "Stage 1", "Stage 2", "BASIC" etc. that may leak in
-    cleaned = cleaned.replace(/\b(BASIC|Stage\s*[12]|EVOLUTION)\b/gi, '').trim();
+    // Remove status labels that can appear to the left of the name.
+    cleaned = cleaned
+      .replace(/\b(BASIS|BASIC|Stage\s*[12]|EVOLUTION)\b/gi, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
 
-    if (cleaned.length >= 2) return cleaned;
+    if (cleaned.length < 2) continue;
+    if (/^(BASIS|BASIC)$/i.test(cleaned)) continue;
+
+    if (!bestCandidate || cleaned.length > bestCandidate.length) {
+      bestCandidate = cleaned;
+    }
   }
 
-  return null;
-}
-
-/**
- * Parse the set info ROI to extract set code and card number.
- * Returns { setCode, cardNumber } or null fields if not found.
- *
- * Handles common OCR misreadings: O↔0, l/I↔1, S↔5, B↔8 in the
- * numeric portion, and normalises whitespace and slash variants.
- */
-function parseSetInfo(raw: string): { setCode: string | null; cardNumber: string | null } {
-  // Normalise OCR artefacts: replace common slash look-alikes and collapse whitespace
-  let text = raw.replace(/\n/g, ' ').trim();
-  // Some OCR engines return backslash or pipe instead of forward slash
-  text = text.replace(/[\\|]/g, '/');
-
-  // Try to find card number like "072/091"
-  let numMatch = CARD_NUMBER_RE.exec(text);
-
-  // If no match, try fixing OCR digit/letter confusion in the numeric parts.
-  // Common confusions: O/o/Q → 0, l/I/i/| → 1, S/s → 5, B/b → 8
-  if (!numMatch) {
-    const DIGIT_LIKE = /[O0oQlIi|1-9SsBb]{1,4}/;
-    const corrected = text
-      .replace(new RegExp(`([A-Z]{2,6}\\s*)(${DIGIT_LIKE.source})\\s*/\\s*(${DIGIT_LIKE.source})`, 'gi'),
-        (_m, prefix: string, a: string, b: string) => {
-          const fixDigits = (s: string) =>
-            s.replace(/[OoQ]/g, '0').replace(/[lIi|]/g, '1').replace(/[Ss]/g, '5').replace(/[Bb]/g, '8');
-          return `${prefix}${fixDigits(a)}/${fixDigits(b)}`;
-        });
-    numMatch = CARD_NUMBER_RE.exec(corrected);
-    if (numMatch) text = corrected;
-  }
-
-  const cardNumber = numMatch ? numMatch[1]!.replace(/^0+/, '') || '0' : null;
-
-  // Try to find a set code (2-6 uppercase letters)
-  // Remove the number portion first to avoid false matches
-  const textWithoutNum = numMatch ? text.replace(numMatch[0], '') : text;
-  const codeMatch = SET_CODE_RE.exec(textWithoutNum.toUpperCase());
-  const setCode = codeMatch && !FALSE_POSITIVE_SET_CODES.has(codeMatch[1]!) ? codeMatch[1]! : null;
-
-  return { setCode, cardNumber };
+  return bestCandidate;
 }
 
 export function OcrScanner({ onCardDetected }: OcrScannerProps) {
   const [status, setStatus] = useState<'idle' | 'camera' | 'processing' | 'result'>('idle');
   const [ocrText, setOcrText] = useState('');
   const [matchedCards, setMatchedCards] = useState<Card[]>([]);
+  const [allResults, setAllResults] = useState<Card[]>([]);
+  const [ocrQuery, setOcrQuery] = useState('');
+  const [totalCount, setTotalCount] = useState(0);
+  const [showAllModal, setShowAllModal] = useState(false);
+  const [loadingAll, setLoadingAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const { t, tr } = useI18n();
+
+  const handleSelectCard = useCallback((card: Card) => {
+    setShowAllModal(false);
+    onCardDetected(card);
+  }, [onCardDetected]);
 
   const startCamera = useCallback(async () => {
     setError(null);
@@ -302,99 +269,44 @@ export function OcrScanner({ onCardDetected }: OcrScannerProps) {
     try {
       const { createWorker, PSM } = await import('tesseract.js');
 
-      // Extract the two ROIs from the captured card image
-      // Name ROI: large text on card header – default 3× upscale
+      // Extract only the name ROI from the captured card image.
       const nameCanvas = extractROI(canvasRef.current, NAME_ROI, { scale: 3 });
-      // Set ROI: small text at card bottom – higher 5× upscale for tiny characters
-      const setCanvas  = extractROI(canvasRef.current, SET_ROI, { scale: 5 });
+      const nameBlob = await canvasToBlob(nameCanvas);
 
-      const [nameBlob, setBlob] = await Promise.all([
-        canvasToBlob(nameCanvas),
-        canvasToBlob(setCanvas),
-      ]);
-
-      // OCR both ROIs – use 'deu+eng' for German card name support
+      // OCR only the name ROI – use 'deu+eng' for German card name support.
       const nameWorker = await createWorker('deu+eng');
-      const setWorker  = await createWorker('eng');
-
-      // Optimise Tesseract parameters for each ROI
-      await setWorker.setParameters({
-        // Treat as a single text line – the set info is one line (e.g. "PAL 041/196")
+      await nameWorker.setParameters({
         tessedit_pageseg_mode: PSM.SINGLE_LINE,
-        // Whitelist only characters that can appear in set codes + card numbers
-        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/ ',
       });
 
-      const [nameResult, setResult] = await Promise.all([
-        nameWorker.recognize(nameBlob),
-        setWorker.recognize(setBlob),
-      ]);
-
-      await Promise.all([nameWorker.terminate(), setWorker.terminate()]);
+      const nameResult = await nameWorker.recognize(nameBlob);
+      await nameWorker.terminate();
 
       const nameRaw = nameResult.data.text.trim();
-      const setRaw  = setResult.data.text.trim();
-
-      // Parse results from each ROI
       const pokemonName = parseNameFromROI(nameRaw);
-      const { setCode, cardNumber } = parseSetInfo(setRaw);
 
-      // Build a combined OCR debug text
       const debugText = [
         `[Name ROI] ${nameRaw}`,
         `→ Parsed name: ${pokemonName ?? '–'}`,
-        '',
-        `[Set ROI] ${setRaw}`,
-        `→ Set: ${setCode ?? '–'}, #${cardNumber ?? '–'}`,
       ].join('\n');
       setOcrText(debugText);
+      setShowAllModal(false);
+      setAllResults([]);
+      setTotalCount(0);
 
-      // ── Search strategy ──
-      // 1. If we have both a set code and card number, search by "SET NUMBER"
-      // 2. Always search by the detected Pokemon name (translated DE→EN)
-      // 3. Combine and deduplicate results, preferring exact set matches
-      const allMatches: Card[] = [];
-
-      // Search by set code + card number (most precise)
-      if (setCode && cardNumber) {
-        try {
-          const result = await searchCardsApi(`${setCode} ${cardNumber}`, 5);
-          allMatches.push(...result.cards);
-        } catch { /* skip */ }
-      }
-
-      // Search by Pokemon name (primary identification)
       if (pokemonName) {
-        // Translate German name to English for the API search
-        const englishName = translateGermanName(pokemonName) ?? pokemonName;
+        setOcrQuery(pokemonName);
         try {
-          const result = await searchCardsApi(englishName, 10);
-          allMatches.push(...result.cards);
-        } catch { /* skip */ }
+          const result = await searchCardsApi(translateGermanName(pokemonName) ?? pokemonName, MAX_VISIBLE_MATCHES + 1);
+          setMatchedCards(result.cards.slice(0, MAX_VISIBLE_MATCHES));
+          setTotalCount(result.totalCount);
+        } catch {
+          setMatchedCards([]);
+        }
+      } else {
+        setOcrQuery('');
+        setMatchedCards([]);
       }
-
-      // Deduplicate by card id
-      const uniqueIds = new Set<string>();
-      const unique = allMatches.filter((c) => {
-        if (uniqueIds.has(c.id)) return false;
-        uniqueIds.add(c.id);
-        return true;
-      });
-
-      // If we have a card number, boost cards whose number matches
-      let sorted = unique;
-      if (cardNumber) {
-        const normalizedNum = cardNumber.replace(/^0+/, '') || '0';
-        sorted = [...unique].sort((a, b) => {
-          const aNorm = a.number.replace(/^0+/, '') || '0';
-          const bNorm = b.number.replace(/^0+/, '') || '0';
-          const aMatch = aNorm === normalizedNum ? 1 : 0;
-          const bMatch = bNorm === normalizedNum ? 1 : 0;
-          return bMatch - aMatch;
-        });
-      }
-
-      setMatchedCards(sorted.slice(0, 5));
       setStatus('result');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'OCR failed');
@@ -402,11 +314,31 @@ export function OcrScanner({ onCardDetected }: OcrScannerProps) {
     }
   }, [stopCamera]);
 
+  const handleShowAll = useCallback(async () => {
+    if (!ocrQuery) return;
+
+    setShowAllModal(true);
+    setLoadingAll(true);
+    try {
+      const result = await searchCardsApi(translateGermanName(ocrQuery) ?? ocrQuery, Math.min(totalCount, MAX_MODAL_MATCHES));
+      setAllResults(result.cards);
+    } catch {
+      setAllResults(matchedCards);
+    } finally {
+      setLoadingAll(false);
+    }
+  }, [matchedCards, ocrQuery, totalCount]);
+
   const reset = useCallback(() => {
     stopCamera();
     setStatus('idle');
     setOcrText('');
     setMatchedCards([]);
+    setAllResults([]);
+    setOcrQuery('');
+    setTotalCount(0);
+    setShowAllModal(false);
+    setLoadingAll(false);
     setError(null);
   }, [stopCamera]);
 
@@ -448,15 +380,6 @@ export function OcrScanner({ onCardDetected }: OcrScannerProps) {
               className="absolute text-yellow-300 text-[9px] font-bold"
               style={{ left: `${(NAME_ROI.x + 0.01) * 100}%`, top: `${(NAME_ROI.y + 0.01) * 100}%` }}
             >NAME</span>
-            {/* ROI overlay: set info area (bottom-left) – derived from SET_ROI */}
-            <div
-              className="absolute border-2 border-cyan-400/80 rounded bg-cyan-400/10"
-              style={{ left: `${SET_ROI.x * 100}%`, top: `${SET_ROI.y * 100}%`, width: `${SET_ROI.w * 100}%`, height: `${SET_ROI.h * 100}%` }}
-            />
-            <span
-              className="absolute text-cyan-300 text-[9px] font-bold"
-              style={{ left: `${(SET_ROI.x + 0.01) * 100}%`, top: `${(SET_ROI.y + 0.01) * 100}%` }}
-            >SET #</span>
             <p className="absolute bottom-3 left-0 right-0 text-center text-white text-xs opacity-70">
               {t('scan.position')}
             </p>
@@ -524,7 +447,7 @@ export function OcrScanner({ onCardDetected }: OcrScannerProps) {
                 {matchedCards.map((card: Card) => (
                   <button
                     key={card.id}
-                    onClick={() => onCardDetected(card)}
+                    onClick={() => handleSelectCard(card)}
                     className="w-full flex items-center gap-3 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-950 text-left"
                   >
                     <img src={card.images.small} alt="" className="w-10 h-14 object-contain" />
@@ -538,12 +461,60 @@ export function OcrScanner({ onCardDetected }: OcrScannerProps) {
                   </button>
                 ))}
               </div>
+              {totalCount > MAX_VISIBLE_MATCHES && (
+                <button
+                  type="button"
+                  onClick={handleShowAll}
+                  className="mt-2 w-full px-3 py-2 text-center text-xs text-blue-600 dark:text-blue-400 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900 hover:bg-blue-50 dark:hover:bg-blue-950 font-medium"
+                >
+                  +{totalCount - MAX_VISIBLE_MATCHES} {t('form.moreResults')}
+                </button>
+              )}
             </div>
           )}
 
           {matchedCards.length === 0 && ocrText && (
             <p className="text-sm text-gray-500">{t('scan.noMatch')}</p>
           )}
+        </div>
+      )}
+
+      {showAllModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50" onClick={() => setShowAllModal(false)}>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col m-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t('form.allResults')}</h3>
+              <button type="button" onClick={() => setShowAllModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-xl leading-none">&times;</button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-2">
+              {loadingAll ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin h-6 w-6 border-2 border-blue-500 border-t-transparent rounded-full" />
+                  <span className="ml-2 text-sm text-gray-500">{t('form.loadingAll')}</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 divide-y divide-gray-100 dark:divide-gray-700">
+                  {allResults.map((card) => (
+                    <button
+                      key={card.id}
+                      type="button"
+                      onClick={() => handleSelectCard(card)}
+                      className="w-full flex items-center gap-3 px-3 py-2 hover:bg-blue-50 dark:hover:bg-blue-950 text-left"
+                    >
+                      <img src={card.images.small} alt="" className="w-10 h-14 object-contain" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{card.name}</div>
+                        <div className="text-xs text-gray-500">
+                          {card.set.name} · {formatSetNumber(card.set, card.number)} · {tr('rarity', card.rarity ?? '')}
+                        </div>
+                      </div>
+                      <span className="ml-auto text-xs text-blue-600">{t('scan.select')}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
