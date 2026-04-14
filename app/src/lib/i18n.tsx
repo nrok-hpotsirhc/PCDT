@@ -153,7 +153,7 @@ const translations = {
     // Scan
     'scan.title': 'Karte scannen (OCR)',
     'scan.idle': 'Scanne eine Pokémon-Karte mit deiner Kamera',
-    'scan.position': 'Karte im Rahmen positionieren',
+    'scan.position': 'Karte hochkant (Hochformat) im Rahmen positionieren',
     'scan.analyzing': 'Karte wird analysiert...',
     'scan.startCamera': '📷 Kamera starten',
     'scan.capture': '⚡ Aufnehmen & Scannen',
@@ -291,7 +291,7 @@ const translations = {
 
     'scan.title': 'Scan Card (OCR)',
     'scan.idle': 'Scan a Pokémon card with your camera',
-    'scan.position': 'Position the card within the frame',
+    'scan.position': 'Position the card upright (portrait) within the frame',
     'scan.analyzing': 'Analyzing card...',
     'scan.startCamera': '📷 Start Camera',
     'scan.capture': '⚡ Capture & Scan',
