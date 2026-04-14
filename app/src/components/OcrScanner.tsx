@@ -1,9 +1,9 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import type { Card } from '@/lib/types';
 import { formatSetNumber } from '@/lib/types';
-import { searchCardsApi } from '@/lib/pokemon-api';
 import { translateGermanName } from '@/lib/german-pokemon-names';
 import { useI18n } from '@/lib/i18n';
+import { loadCards } from '@/lib/data-loader';
 
 interface OcrScannerProps {
   /** Kept for API compatibility – not used directly in scan logic. */
@@ -14,7 +14,7 @@ interface OcrScannerProps {
 /** Pokemon card aspect ratio: 63mm × 88mm ≈ 5:7 */
 const CARD_RATIO = 5 / 7;
 const MAX_VISIBLE_MATCHES = 5;
-const MAX_MODAL_MATCHES = 50;
+const NON_NAME_PREFIXES = new Set(['basis', 'basic', 'stage', 'stufe', 'evolution']);
 
 // ── ROI definitions (fractions of card width/height) ────────────────────────
 // Top-left ROI: only the actual Pokemon name area, skipping the tiny status text
@@ -167,21 +167,41 @@ function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
 }
 
 /**
- * Clean up the OCR text for the Pokemon name ROI.
- * Returns the best candidate name string.
+ * Normalize a card name for exact lookup against OCR candidates.
  */
-function parseNameFromROI(raw: string): string | null {
+function normalizeNameLookup(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function mergeCards(primary: Card[], secondary: Card[]): Card[] {
+  const merged = new Map<string, Card>();
+  for (const card of primary) merged.set(card.id, card);
+  for (const card of secondary) merged.set(card.id, card);
+  return Array.from(merged.values());
+}
+
+/**
+ * Extract candidate name phrases from the OCR text for the name ROI.
+ * Returns phrases ordered from longest to shortest.
+ */
+function extractNameCandidatesFromROI(raw: string): string[] {
   const lines = raw
     .split('\n')
     .map((l) => l.trim())
     .filter((l) => l.length >= 2);
 
-  let bestCandidate: string | null = null;
+  const candidates = new Set<string>();
 
   for (const line of lines) {
     // Remove noise characters that Tesseract sometimes injects
     let cleaned = line
-      .replace(/[|_{}[\]<>~`@#$%^&*()+=]/g, '')
+      .replace(/[|_{}[\]<>~`@#$%^&*()+=]/g, ' ')
       .replace(/\s{2,}/g, ' ')
       .trim();
 
@@ -192,28 +212,69 @@ function parseNameFromROI(raw: string): string | null {
     if (/^HP\s*\d+$/i.test(cleaned)) continue;
     if (/^\d+$/.test(cleaned)) continue;
 
-    // Remove status labels that can appear to the left of the name.
-    cleaned = cleaned
-      .replace(/\b(BASIS|BASIC|Stage\s*[12]|EVOLUTION)\b/gi, '')
-      .replace(/\s{2,}/g, ' ')
-      .trim();
+    const words = cleaned
+      .split(/\s+/)
+      .map((word) => word.replace(/^[^0-9A-Za-zÀ-ÿ]+|[^0-9A-Za-zÀ-ÿ'.-]+$/g, ''))
+      .filter((word) => word.length > 0);
 
-    if (cleaned.length < 2) continue;
-    if (/^(BASIS|BASIC)$/i.test(cleaned)) continue;
+    while (words.length > 0 && NON_NAME_PREFIXES.has(normalizeNameLookup(words[0]!))) {
+      words.shift();
+    }
 
-    if (!bestCandidate || cleaned.length > bestCandidate.length) {
-      bestCandidate = cleaned;
+    for (let length = words.length; length >= 1; length--) {
+      for (let start = 0; start + length <= words.length; start++) {
+        const phrase = words.slice(start, start + length).join(' ').trim();
+        if (phrase.length < 2) continue;
+        if (/^\d+$/.test(phrase)) continue;
+        candidates.add(phrase);
+      }
     }
   }
 
-  return bestCandidate;
+  return Array.from(candidates).sort((a, b) => {
+    const tokenDiff = b.split(/\s+/).length - a.split(/\s+/).length;
+    return tokenDiff || b.length - a.length;
+  });
 }
 
-export function OcrScanner({ onCardDetected }: OcrScannerProps) {
+function findCardsForDetectedName(
+  raw: string,
+  cardPool: Card[],
+): { matchedName: string; cards: Card[]; candidates: string[] } | null {
+  if (cardPool.length === 0) return null;
+
+  const cardsByName = new Map<string, Card[]>();
+  for (const card of cardPool) {
+    const key = normalizeNameLookup(card.name);
+    const existing = cardsByName.get(key);
+    if (existing) existing.push(card);
+    else cardsByName.set(key, [card]);
+  }
+
+  const candidates = extractNameCandidatesFromROI(raw);
+
+  for (const candidate of candidates) {
+    const variants = [candidate, translateGermanName(candidate)]
+      .filter((value): value is string => Boolean(value))
+      .filter((value, index, array) => array.indexOf(value) === index);
+
+    for (const variant of variants) {
+      const hits = cardsByName.get(normalizeNameLookup(variant));
+      if (hits && hits.length > 0) {
+        return { matchedName: variant, cards: hits, candidates };
+      }
+    }
+  }
+
+  return candidates.length > 0 ? { matchedName: '', cards: [], candidates } : null;
+}
+
+export function OcrScanner({ cards, onCardDetected }: OcrScannerProps) {
   const [status, setStatus] = useState<'idle' | 'camera' | 'processing' | 'result'>('idle');
   const [ocrText, setOcrText] = useState('');
   const [matchedCards, setMatchedCards] = useState<Card[]>([]);
   const [allResults, setAllResults] = useState<Card[]>([]);
+  const [catalogCards, setCatalogCards] = useState<Card[]>([]);
   const [ocrQuery, setOcrQuery] = useState('');
   const [totalCount, setTotalCount] = useState(0);
   const [showAllModal, setShowAllModal] = useState(false);
@@ -228,6 +289,22 @@ export function OcrScanner({ onCardDetected }: OcrScannerProps) {
     setShowAllModal(false);
     onCardDetected(card);
   }, [onCardDetected]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    void loadCards()
+      .then((loadedCards) => {
+        if (mounted) setCatalogCards(loadedCards);
+      })
+      .catch(() => {
+        if (mounted) setCatalogCards([]);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const startCamera = useCallback(async () => {
     setError(null);
@@ -283,51 +360,40 @@ export function OcrScanner({ onCardDetected }: OcrScannerProps) {
       await nameWorker.terminate();
 
       const nameRaw = nameResult.data.text.trim();
-      const pokemonName = parseNameFromROI(nameRaw);
+      const searchPool = mergeCards(catalogCards, cards);
+      const detectedMatch = findCardsForDetectedName(nameRaw, searchPool);
+      const candidatePreview = detectedMatch?.candidates.join(' | ') ?? '–';
 
       const debugText = [
         `[Name ROI] ${nameRaw}`,
-        `→ Parsed name: ${pokemonName ?? '–'}`,
+        `→ Kandidaten: ${candidatePreview}`,
+        `→ Gültiger Name: ${detectedMatch?.matchedName || '–'}`,
       ].join('\n');
       setOcrText(debugText);
       setShowAllModal(false);
-      setAllResults([]);
-      setTotalCount(0);
 
-      if (pokemonName) {
-        setOcrQuery(pokemonName);
-        try {
-          const result = await searchCardsApi(translateGermanName(pokemonName) ?? pokemonName, MAX_VISIBLE_MATCHES + 1);
-          setMatchedCards(result.cards.slice(0, MAX_VISIBLE_MATCHES));
-          setTotalCount(result.totalCount);
-        } catch {
-          setMatchedCards([]);
-        }
+      if (detectedMatch && detectedMatch.cards.length > 0) {
+        setOcrQuery(detectedMatch.matchedName);
+        setMatchedCards(detectedMatch.cards.slice(0, MAX_VISIBLE_MATCHES));
+        setAllResults(detectedMatch.cards);
+        setTotalCount(detectedMatch.cards.length);
       } else {
         setOcrQuery('');
         setMatchedCards([]);
+        setAllResults([]);
+        setTotalCount(0);
       }
       setStatus('result');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'OCR failed');
       setStatus('idle');
     }
-  }, [stopCamera]);
+  }, [cards, catalogCards, stopCamera]);
 
-  const handleShowAll = useCallback(async () => {
-    if (!ocrQuery) return;
-
+  const handleShowAll = useCallback(() => {
+    if (!ocrQuery || allResults.length === 0) return;
     setShowAllModal(true);
-    setLoadingAll(true);
-    try {
-      const result = await searchCardsApi(translateGermanName(ocrQuery) ?? ocrQuery, Math.min(totalCount, MAX_MODAL_MATCHES));
-      setAllResults(result.cards);
-    } catch {
-      setAllResults(matchedCards);
-    } finally {
-      setLoadingAll(false);
-    }
-  }, [matchedCards, ocrQuery, totalCount]);
+  }, [allResults.length, ocrQuery]);
 
   const reset = useCallback(() => {
     stopCamera();
