@@ -17,7 +17,7 @@ const MAX_VISIBLE_MATCHES = 5;
 const MAX_NAME_WORDS = 4;
 const MIN_NAME_LETTERS = 5;
 const NON_NAME_PREFIXES = new Set(['basis', 'basic', 'stage', 'stufe', 'evolution']);
-const NON_NAME_WORDS = new Set([...NON_NAME_PREFIXES, 'hp', 'kp', 'pokemon', 'pokémon']);
+const NON_NAME_WORDS = new Set([...NON_NAME_PREFIXES, 'hp', 'kp', 'pokemon']);
 
 // ── ROI definitions (fractions of card width/height) ────────────────────────
 // Search the broader upper card area because the embedded Pokémon name is
@@ -214,8 +214,7 @@ function extractNameCandidatesFromROI(raw: string): string[] {
     // Remove noise characters that Tesseract sometimes injects
     let cleaned = line
       .replace(/[|_{}[\]<>~`@#$%^&*()+=]/g, ' ')
-      .replace(/\b(?:hp|kp)\s*\d+\b/gi, ' ')
-      .replace(/\b\d+\s*(?:hp|kp)\b/gi, ' ')
+      .replace(/\b(?:(?:hp|kp)\s*\d+|\d+\s*(?:hp|kp))\b/gi, ' ')
       .replace(/\s{2,}/g, ' ')
       .trim();
 
