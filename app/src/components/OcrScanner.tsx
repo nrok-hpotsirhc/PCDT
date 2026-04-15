@@ -15,14 +15,15 @@ interface OcrScannerProps {
 const CARD_RATIO = 5 / 7;
 const MAX_VISIBLE_MATCHES = 5;
 const MAX_NAME_WORDS = 4;
-const MIN_NAME_LETTERS = 5;
+const MIN_NAME_LETTERS = 3;
 const NON_NAME_PREFIXES = new Set(['basis', 'basic', 'stage', 'stufe', 'evolution']);
 const NON_NAME_WORDS = new Set([...NON_NAME_PREFIXES, 'hp', 'kp', 'pokemon']);
 
 // ── ROI definitions (fractions of card width/height) ────────────────────────
-// Search the broader upper card area because the embedded Pokémon name is
-// expected somewhere in the top section, but not at a fixed position.
-const NAME_ROI = { x: 0.04, y: 0.01, w: 0.92, h: 0.3 };
+// Search the upper card area for the Pokémon name.  The region is wider than
+// the name itself to tolerate camera offset, but short enough to avoid the
+// card artwork which starts around 15-20 % from the top.
+const NAME_ROI = { x: 0.04, y: 0.01, w: 0.92, h: 0.15 };
 
 /**
  * Crop the center of the video frame to the Pokemon card portrait aspect ratio.
@@ -55,54 +56,19 @@ function captureCardCanvas(video: HTMLVideoElement, canvas: HTMLCanvasElement): 
   return true;
 }
 
-/**
- * Compute an Otsu threshold for a grayscale histogram.
- * Returns the threshold value that minimizes intra-class variance.
- */
-function otsuThreshold(grayValues: number[]): number {
-  const histogram = new Array<number>(256).fill(0);
-  for (const v of grayValues) histogram[v]!++;
-
-  const total = grayValues.length;
-  let sum = 0;
-  for (let i = 0; i < 256; i++) sum += i * histogram[i]!;
-
-  let sumB = 0;
-  let wB = 0;
-  let maxVariance = 0;
-  let bestThreshold = 128;
-
-  for (let t = 0; t < 256; t++) {
-    wB += histogram[t]!;
-    if (wB === 0) continue;
-    const wF = total - wB;
-    if (wF === 0) break;
-
-    sumB += t * histogram[t]!;
-    const meanB = sumB / wB;
-    const meanF = (sum - sumB) / wF;
-    const variance = wB * wF * (meanB - meanF) * (meanB - meanF);
-
-    if (variance > maxVariance) {
-      maxVariance = variance;
-      bestThreshold = t;
-    }
-  }
-  return bestThreshold;
-}
-
 interface ROIOptions {
   /** Upscale factor (default 3) */
   scale?: number;
 }
 
 /**
- * Extract a ROI from a source canvas into a new canvas with heavy
+ * Extract a ROI from a source canvas into a new canvas with
  * preprocessing optimised for OCR accuracy.
  *
- * Pipeline: bilinear upscale → grayscale → adaptive Otsu binarization.
- * If the ROI is predominantly dark (mean gray < 128) the result is
- * automatically inverted so Tesseract always sees dark text on white bg.
+ * Pipeline: bilinear upscale → grayscale → contrast stretch.
+ * Modern Tesseract's LSTM engine handles binarization internally;
+ * feeding it a clean grayscale image produces better results than
+ * a global Otsu threshold which destroys text on mixed-content ROIs.
  */
 function extractROI(
   src: HTMLCanvasElement,
@@ -131,28 +97,41 @@ function extractROI(
   const d = imageData.data;
 
   const pixelCount = d.length / 4;
-  const grayValues = new Array<number>(pixelCount);
+  let grayMin = 255;
+  let grayMax = 0;
   let graySum = 0;
 
   for (let i = 0; i + 3 < d.length; i += 4) {
     const gray = Math.round(0.299 * d[i]! + 0.587 * d[i + 1]! + 0.114 * d[i + 2]!);
     d[i] = d[i + 1] = d[i + 2] = gray;
-    grayValues[i / 4] = gray;
+    if (gray < grayMin) grayMin = gray;
+    if (gray > grayMax) grayMax = gray;
     graySum += gray;
   }
 
-  // ── Step 2: Adaptive Otsu binarization ────────────────────────────────
-  const threshold = otsuThreshold(grayValues);
+  // ── Step 2: Contrast stretch ──────────────────────────────────────────
+  // Map the darkest pixel to 0 and the brightest to 255 so Tesseract
+  // receives a full-range grayscale image.
+  const range = grayMax - grayMin;
 
-  // Auto-detect inversion: if the ROI is predominantly dark (mean < 128),
+  // Auto-detect inversion: if the ROI is predominantly dark (mean < 128)
   // the text is likely light-on-dark and we must invert for Tesseract.
   const meanGray = graySum / pixelCount;
   const needsInvert = meanGray < 128;
 
-  for (let i = 0; i + 3 < d.length; i += 4) {
-    let bin = d[i]! > threshold ? 255 : 0;
-    if (needsInvert) bin = bin === 255 ? 0 : 255;
-    d[i] = d[i + 1] = d[i + 2] = bin;
+  // Only stretch when there is actual contrast; a uniform image (range=0)
+  // needs no transformation (or just inversion).
+  if (range > 0) {
+    const scaleFactor = 255 / range;
+    for (let i = 0; i + 3 < d.length; i += 4) {
+      let stretched = Math.round((d[i]! - grayMin) * scaleFactor);
+      if (needsInvert) stretched = 255 - stretched;
+      d[i] = d[i + 1] = d[i + 2] = stretched;
+    }
+  } else if (needsInvert) {
+    for (let i = 0; i + 3 < d.length; i += 4) {
+      d[i] = d[i + 1] = d[i + 2] = 255 - d[i]!;
+    }
   }
 
   ctx.putImageData(imageData, 0, 0);
@@ -393,14 +372,14 @@ export function OcrScanner({ cards, onCardDetected }: OcrScannerProps) {
     try {
       const { createWorker, PSM } = await import('tesseract.js');
 
-      // Scan the broader upper area because the name can appear anywhere there.
+      // Scan the upper card area where the name is expected.
       const nameCanvas = extractROI(canvasRef.current, NAME_ROI, { scale: 3 });
       const nameBlob = await canvasToBlob(nameCanvas);
 
       // OCR the upper card section – use 'deu+eng' for German card name support.
       const nameWorker = await createWorker('deu+eng');
       await nameWorker.setParameters({
-        tessedit_pageseg_mode: PSM.AUTO,
+        tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
       });
 
       const nameResult = await nameWorker.recognize(nameBlob);
